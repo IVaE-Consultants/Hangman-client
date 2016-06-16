@@ -4,50 +4,35 @@
  * @flow
  */
 
-import React, { Component } from 'react';
+import React from 'react';
+import {Effect} from 'effectjs';
+import {init, update, view} from './components/app.js';
+
 import {
   AppRegistry,
-  StyleSheet,
-  Text,
-  View
 } from 'react-native';
 
-class hangmanclient extends Component {
-  render() {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.welcome}>
-          Welcome to React Native!
-        </Text>
-        <Text style={styles.instructions}>
-          To get started, edit index.ios.js
-        </Text>
-        <Text style={styles.instructions}>
-          Press Cmd+R to reload,{'\n'}
-          Cmd+D or shake for dev menu
-        </Text>
-      </View>
-    );
-  }
-}
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F5FCFF',
-  },
-  welcome: {
-    fontSize: 20,
-    textAlign: 'center',
-    margin: 10,
-  },
-  instructions: {
-    textAlign: 'center',
-    color: '#333333',
-    marginBottom: 5,
-  },
+const application = Effect.app({init, update, view});
+
+const hangmanclient = React.createClass({
+    getInitialState() {
+        return {
+            view: null,
+        };
+    },
+    componentDidMount() {
+        application.onStart(initialView => {
+            this.setState({view: initialView});
+        });
+        application.onView(view => {
+            this.setState({view});
+        });
+        application.start();
+    },
+    render() {
+        return this.state.view;
+    },
 });
 
 AppRegistry.registerComponent('hangmanclient', () => hangmanclient);
