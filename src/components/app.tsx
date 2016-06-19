@@ -14,30 +14,21 @@ import {
     TouchableOpacity,
 } from 'react-native';
 
-interface Component {
-    init : (props : any) => any;
-    update : (state : any, action : any) => any;
-    view : (state : any, next : (action : any) => any) => any;
-};
-
-enum Page {
-    Main,
-    Guess
-}
+import {Page, PageAction, Actions as PageActions} from './PageActions';
 
 enum Actions {
-    Increment,
-    Page,
+    SubAction,
+    Navigate,
 }
 
-interface Action<K,V> {
-    type : K;
-    data : V;
-}
+import {ComponentT, EffectT, ResultT, ActionT} from './EffectTypes';
 
-type AppAction = Action<Actions, any>;
+type AppAction = ActionT<Actions, any>;
 
-const pages = (page : Page) : Component => {
+const getPageState = (state: any) => (page : Page) : any =>
+    state[page];
+
+const pages = (page : Page) : ComponentT<any, any, any> => {
     if (page === Page.Main) {
         return main;
     } else if(page === Page.Guess) {
@@ -46,25 +37,40 @@ const pages = (page : Page) : Component => {
 }
 
 export const init = () => {
-    return Result({x:1,
+    return Result({
         page: Page.Main,
+        [Page.Main]: pages(Page.Main).init().state,
+        [Page.Guess]: pages(Page.Guess).init().state,
     }, Effect.none);
 };
 
-export const update = (state : any, action : AppAction) => {
+export const update = (state : any, action : AppAction) : any => {
+    const pageState = getPageState(state);
     const {type, data} = action;
-    if (type === Actions.Increment) {
-        return Result({ x: state.x + 1 }, Effect.none);
-    } else if (type === Actions.Page){
+    if (type === Actions.Navigate) {
+        const {data: navAction} = action;
+        const {type: navType, data: page} = navAction;
+        if(navType === PageActions.GoToPage) {
+            state.page = page;
+            return Result(state);
+        }
+    } else if (type === Actions.SubAction){
+        const {type: pageName, data: pageAction} = data;
+        // delegate to sub component
+        const component : ComponentT<any,any,any> = pages(pageName);
+        const componentState = pageState(pageName);
+        const result = component.update(componentState, pageAction);
+        state[pageName] = result.state;
         return Result(state);
     }
 };
 
 export const view = (state : any, next : (action : AppAction) => void) => {
-    const {page} = state;
-    const component : Component = pages(page);
-    const content = component.view(state[page], Action.wrap(page));
-
+    const {page} : {page : Page} = state;
+    const component : ComponentT<any, any, any> = pages(page);
+    const delegate = (subaction : ActionT<any, any>) => next(Action(page, subaction));
+    const navigate = (navAction : PageAction) => next(Action(Actions.Navigate, navAction));
+    const content = component.view(state[page], delegate, navigate);
     return (
         <View style={{flex:1}}>
         {content}

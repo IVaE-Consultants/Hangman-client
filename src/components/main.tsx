@@ -1,5 +1,7 @@
 import * as React from 'react';
 const {Action, Effect, Result} = require('effectjs');
+import {Page, goToPage} from './PageActions';
+import {ResultT, EffectT} from './EffectTypes';
 
 import {
     View,
@@ -12,13 +14,13 @@ export const init = () => {
     return Result({}, Effect.none);
 };
 
-export const update = (state : any, action : any) => {
-    const {type, data} = action;
+export const update = (state : any, action : any) : ResultT<any,EffectT<any>> => {
+    return Result(state);
 };
 
-export const view = (state : any, next : (action : any) => void) => {
+export const view = (state : any, next : any, navigate : (action : any) => void) => {
     return (
-    <TouchableHighlight onPress={()=> {console.log("Ho yeah");next(Action('page', {page: '/guess'}))}}>
+    <TouchableHighlight onPress={()=> {navigate(goToPage(Page.Guess))}}>
         <View style={{
             alignSelf: 'center',
             justifyContent: 'center',

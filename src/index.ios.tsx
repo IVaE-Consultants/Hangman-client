@@ -22,10 +22,10 @@ const hangmanclient = React.createClass({
         };
     },
     componentDidMount() {
-        application.onStart((initialView : any) => {
+        application.onStart((initialView : React.ReactElement<any>) => {
             this.setState({view: initialView});
         });
-        application.onView((view : any) => {
+        application.onView((view : React.ReactElement<any>) => {
             this.setState({view});
         });
         application.start();

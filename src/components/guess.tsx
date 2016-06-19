@@ -1,5 +1,7 @@
 import * as React from 'react';
 const {Action, Effect, Result} = require('effectjs');
+import {Page, goToPage, PageAction, Action} from './PageActions';
+import {ResultT, EffectT} from './EffectTypes';
 
 import {
     View,
@@ -7,23 +9,30 @@ import {
     Text,
 } from 'react-native';
 
+const enum Actions {
+    GuessLetter,
+}
 
-export const init = () => {
+type Letter = 'A';
+type GuessAction = Action<Actions,Letter>;
+type OutAction = GuessAction | PageAction;
+
+export const init = () : ResultT<any, EffectT<any>> => {
     return Result({}, Effect.none);
 };
 
-export const update = (state : any, action : any) => {
+export const update = (state : any, action : GuessAction) : ResultT<any, EffectT<any>> => {
     const {type, data} = action;
-    if (type === 'guess letter') {
+    if (type === Actions.GuessLetter) {
         //Evaluate if correct or not
         //then return a new state
         return Result(state, Effect.none);
     }
 };
 
-export const view = (state : any, next : (action : any) => any) => {
+export const view = (state : any, next : any, navigate : any) : React.ReactElement<any> => {
     return (
-        <TouchableHighlight onPress={()=> {next(Action('page', {page: '/main'}))}}>
+        <TouchableHighlight onPress={()=> {navigate(goToPage(Page.Main))}}>
             <View style={{
                 alignSelf: 'center',
                 justifyContent: 'center',
