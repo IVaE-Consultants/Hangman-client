@@ -1,0 +1,8 @@
+{
+  "name": "Hangman-client",
+  "version": false,
+  "globalDependencies": {
+    "react": "registry:dt/react#0.14.0+20160602151522",
+    "react-native": "registry:dt/react-native#0.27.0+20160619030006"
+  }
+}
