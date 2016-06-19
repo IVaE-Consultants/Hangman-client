@@ -2,11 +2,12 @@ import * as React from 'react';
 import * as guess from './guess'
 import * as main from './main'
 
-const {
+import {
     Effect,
     Action,
     Result,
-} = require('effectjs');
+    Component,
+} from 'effectjs';
 
 import {
     View,
@@ -21,14 +22,12 @@ enum Actions {
     Navigate,
 }
 
-import {ComponentT, EffectT, ResultT, ActionT} from './EffectTypes';
-
-type AppAction = ActionT<Actions, any>;
+type AppAction = Action<Actions, any>;
 
 const getPageState = (state: any) => (page : Page) : any =>
     state[page];
 
-const pages = (page : Page) : ComponentT<any, any, any> => {
+const pages = (page : Page) : Component<any, any, any> => {
     if (page === Page.Main) {
         return main;
     } else if(page === Page.Guess) {
@@ -57,7 +56,7 @@ export const update = (state : any, action : AppAction) : any => {
     } else if (type === Actions.SubAction){
         const {type: pageName, data: pageAction} = data;
         // delegate to sub component
-        const component : ComponentT<any,any,any> = pages(pageName);
+        const component : Component<any,any,any> = pages(pageName);
         const componentState = pageState(pageName);
         const result = component.update(componentState, pageAction);
         state[pageName] = result.state;
@@ -67,8 +66,8 @@ export const update = (state : any, action : AppAction) : any => {
 
 export const view = (state : any, next : (action : AppAction) => void) => {
     const {page} : {page : Page} = state;
-    const component : ComponentT<any, any, any> = pages(page);
-    const delegate = (subaction : ActionT<any, any>) => next(Action(page, subaction));
+    const component : Component<any, any, any> = pages(page);
+    const delegate = (subaction : Action<any, any>) => next(Action(Actions.SubAction,Action(page, subaction)));
     const navigate = (navAction : PageAction) => next(Action(Actions.Navigate, navAction));
     const content = component.view(state[page], delegate, navigate);
     return (

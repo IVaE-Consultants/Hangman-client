@@ -1,7 +1,6 @@
 import * as React from 'react';
-const {Action, Effect, Result} = require('effectjs');
-import {Page, goToPage} from './PageActions';
-import {ResultT, EffectT} from './EffectTypes';
+import {Action, Effect, Result} from 'effectjs';
+import {Page, goToPage, PageAction} from './PageActions';
 
 import {
     View,
@@ -9,16 +8,22 @@ import {
     Text,
 } from 'react-native';
 
+enum Actions {
+}
 
-export const init = () => {
-    return Result({}, Effect.none);
+type State = number
+type MainAction = Action<Actions, any>;
+type MainResult = Result<State, Effect<MainAction>>;
+
+export const init = () : MainResult => {
+    return Result(2, Effect.none);
 };
 
-export const update = (state : any, action : any) : ResultT<any,EffectT<any>> => {
+export const update = (state : State, action : MainAction) : MainResult => {
     return Result(state);
 };
 
-export const view = (state : any, next : any, navigate : (action : any) => void) => {
+export const view = (state : State, next : (action : MainAction) => void, navigate : (action : PageAction) => void) => {
     return (
     <TouchableHighlight onPress={()=> {navigate(goToPage(Page.Guess))}}>
         <View style={{

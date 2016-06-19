@@ -1,7 +1,6 @@
 import * as React from 'react';
-const {Action, Effect, Result} = require('effectjs');
-import {Page, goToPage, PageAction, Action} from './PageActions';
-import {ResultT, EffectT} from './EffectTypes';
+import {Action, Effect, Result} from 'effectjs';
+import {Page, goToPage, PageAction, Actions as PageActions} from './PageActions';
 
 import {
     View,
@@ -13,15 +12,16 @@ const enum Actions {
     GuessLetter,
 }
 
+type State = {};
 type Letter = 'A';
 type GuessAction = Action<Actions,Letter>;
-type OutAction = GuessAction | PageAction;
+type GuessResult = Result<State,Effect<GuessAction>>;
 
-export const init = () : ResultT<any, EffectT<any>> => {
+export const init = () : GuessResult => {
     return Result({}, Effect.none);
 };
 
-export const update = (state : any, action : GuessAction) : ResultT<any, EffectT<any>> => {
+export const update = (state : State, action : GuessAction) : GuessResult => {
     const {type, data} = action;
     if (type === Actions.GuessLetter) {
         //Evaluate if correct or not
@@ -30,7 +30,7 @@ export const update = (state : any, action : GuessAction) : ResultT<any, EffectT
     }
 };
 
-export const view = (state : any, next : any, navigate : any) : React.ReactElement<any> => {
+export const view = (state : State, next : (action : GuessAction) => void, navigate : (action : PageAction) => void) => {
     return (
         <TouchableHighlight onPress={()=> {navigate(goToPage(Page.Main))}}>
             <View style={{
