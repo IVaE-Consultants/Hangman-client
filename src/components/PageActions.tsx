@@ -1,4 +1,4 @@
-const {Action} = require('effectjs');
+import {Action} from 'effectjs';
 
 export const enum Actions {
     GoToPage,
@@ -7,11 +7,6 @@ export const enum Actions {
 export const enum Page {
     Main,
     Guess
-}
-
-export interface Action<K,V> {
-    type : K;
-    data : V;
 }
 
 export type PageAction = Action<Actions, Page>;
