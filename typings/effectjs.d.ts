@@ -10,6 +10,7 @@ declare namespace EffectJS {
     }
     namespace Effect {
         var none: Effect<any>;
+        function all<A>(effects : Effect<A>[]) : Effect<A>;
     }
     function Effect<A>(action : A) : Effect<A>
 

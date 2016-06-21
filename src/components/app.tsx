@@ -1,6 +1,7 @@
 import * as React from 'react';
 import * as guess from './guess'
 import * as main from './main'
+import {Map} from 'immutable';
 
 import {
     Effect,
@@ -23,11 +24,12 @@ enum Actions {
 }
 
 type AppAction = Action<Actions, any>;
+type PageStates = Map<Page, any>;
 
 const getPageState = (state: any) => (page : Page) : any =>
-    state[page];
+    state.pages.get(page);
 
-const pages = (page : Page) : Component<any, any, any> => {
+const getPage = (page : Page) : Component<any, any, any> => {
     if (page === Page.Main) {
         return main;
     } else if(page === Page.Guess) {
@@ -39,13 +41,22 @@ const delegateTo = (page : Page) => (action : Action<any, any>) =>
     Action(Actions.Delegate,Action(page, action));
 
 export const init = () => {
-    const mainResult = pages(Page.Main).init();
-
-    const effect = mainResult.effect.map(delegateTo(Page.Main));
+    const pages = [Page.Main, Page.Guess];
+    const results = pages.map(page => {
+        return getPage(page).init();
+    });
+    const effects = results.map((result, i) => {
+        const page = pages[i];
+        return result.effect.map(delegateTo(page));
+    });
+    const effect = Effect.all(effects);
+    const states : PageStates = results.reduce((states, result, i) => {
+        const page = pages[i]
+        return states.set(page, result.state);
+    }, Map() as PageStates);
     return Result({
         page: Page.Main,
-        [Page.Main]: mainResult.state,
-        [Page.Guess]: pages(Page.Guess).init().state,
+        pages: states,
     }, effect);
 };
 
@@ -62,20 +73,22 @@ export const update = (state : any, action : AppAction) : any => {
     } else if (type === Actions.Delegate){
         const {type: pageName, data: pageAction} = data;
         // delegate to sub component
-        const component : Component<any,any,any> = pages(pageName);
+        const component : Component<any,any,any> = getPage(pageName);
         const componentState = pageState(pageName);
         const result = component.update(componentState, pageAction);
-        state[pageName] = result.state;
+        // SCARY MUTATIONS!!!
+        state.pages = state.pages.set(pageName, result.state);
         return Result(state);
     }
 };
 
 export const view = (state : any, next : (action : AppAction) => void) => {
     const {page} : {page : Page} = state;
-    const component : Component<any, any, any> = pages(page);
+    const component : Component<any, any, any> = getPage(page);
+    console.log(component, page);
     const delegate = (subaction : Action<any, any>) => next(delegateTo(page)(subaction));
     const navigate = (navAction : PageAction) => next(Action(Actions.Navigate, navAction));
-    const content = component.view(state[page], delegate, navigate);
+    const content = component.view(getPageState(state)(page), delegate, navigate);
     return (
         <View style={{
             flex:1,
