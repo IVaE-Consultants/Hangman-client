@@ -7,7 +7,9 @@ declare module Immutable {
         type IRecord<T> = T & TypedMap<T>;
 
         interface TypedMap<T> extends Map<string, any> {
-            set(key: string, value: any): IRecord<T>
+            set(key: string, value: any): IRecord<T>;
+            merge(...iterables: Iterable<string, any>[]): IRecord<T>;
+            merge(...iterables: T[]): IRecord<T>;
         }
 
         interface Factory<T> {
