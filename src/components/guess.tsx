@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {Action, Effect, Result} from 'effectjs';
 import {Page, goToPage, PageAction, Actions as PageActions} from './PageActions';
+import {Record, Map} from 'immutable';
 
 import {
     StyleSheet,
@@ -13,22 +14,31 @@ const enum Actions {
     GuessLetter,
 }
 
+type Guessed = {[key:string]: boolean};
+const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const chars = [...alphabet];
+const guessedLetters = chars.reduce( (acc: Guessed, letter: string) : Guessed  => {
+    acc[letter] = false;
+    return acc;
+}, {} as Guessed);
 
-const enum Attributes {
-    x,
-    y,
+const guessed = Map(guessedLetters);
+const word = 'HELLO';
+
+interface StateAttrs {
+    word?: string;
+    guessed?: Map<string,boolean>;
+    unknown?: number;
 }
+const State = Record<StateAttrs>({
+    word: word,
+    guessed: guessed,
+    unknown: word.length,
+});
 
-const getKey = (key: Attributes) : string => {
-    switch (key){
-        case(Attributes.x):
-            return 'x';
-    }
-}
+type State = Record.IRecord<StateAttrs>;
 
-type State = {
-    word: string
-};
+
 type Letter = string;
 type GuessAction = Action<Actions,Letter>;
 type GuessResult = Result<State,Effect<GuessAction>>;
@@ -42,7 +52,7 @@ var TILE_SIZE = CELL_SIZE - CELL_PADDING * 2;
 var LETTER_SIZE = Math.floor(TILE_SIZE * .75);
 
 export const init = () : GuessResult => {
-    return Result({word: 'HELLO'}, Effect.none);
+    return Result(State(), Effect.none);
 };
 
 export const update = (state : State, action : GuessAction) : GuessResult => {
@@ -52,6 +62,10 @@ export const update = (state : State, action : GuessAction) : GuessResult => {
         let letter = data;
         let {word} = state;
         let chars = [...word];
+        if (state.guessed.get(letter)){
+            console.log('ALREADY guessed that letter');
+        }
+        //Evaluate if correct or not
         const positions = chars.reduce((acc:number[], char: string, i:number) => {
             if (char === letter) {
                 acc.push(i);
@@ -59,9 +73,18 @@ export const update = (state : State, action : GuessAction) : GuessResult => {
             return acc;
         }, []);
         console.log(positions);
-        //Evaluate if correct or not
-        //then return a new state
-        return Result(state, Effect.none);
+        // update revealed
+        
+
+        // update guessed
+        let newGuessed = state.guessed.set(letter, true);
+
+
+        // update misses
+        //
+        // return a new state
+        const newState = state.merge({guessed:newGuessed});
+        return Result(newState, Effect.none);
     }
 };
 
