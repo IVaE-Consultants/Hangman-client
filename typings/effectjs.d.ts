@@ -7,14 +7,12 @@ declare namespace EffectJS {
 
     interface Effect<A> {
         create: Effect<A>;
-        map: <B>(g : (f : ((a : A) => B)) => Effect<A>) => Effect<B>;
+        map: <B>(f : ((a : A) => B)) => Effect<B>;
     }
     namespace Effect {
         var none: Effect<any>;
     }
-
-
-    // const effect2 = Effect.map(f)(effect);
+    function Effect<A>(action : A) : Effect<A>
 
     interface Result<S,A> {
         state: S;
