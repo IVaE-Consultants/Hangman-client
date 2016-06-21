@@ -1,13 +1,12 @@
 declare namespace EffectJS {
-    interface Component<A,S,V> {
-        init : (...props: any[]) => Result<S,Effect<A>>;
-        update : (state : S, action : Action<A, any>) => Result<S,Effect<A>>;
-        view : (state : S, ...next : ((action : Action<A,any>) => void)[]) => React.ReactElement<V>;
+    interface Component<S,A,V> {
+        init : (...props: any[]) => Result<S, A>;
+        update : (state : S, action : A) => Result<S, A>;
+        view : (state : S, ...next : ((action : Action<any, any>) => void)[]) => V;
+        actions? : any;
     }
-
     interface Effect<A> {
-        create: Effect<A>;
-        map: <B>(f : ((a : A) => B)) => Effect<B>;
+        map?: <B>(f : ((a : A) => B)) => Effect<B>;
     }
     namespace Effect {
         var none: Effect<any>;
@@ -18,8 +17,8 @@ declare namespace EffectJS {
         state: S;
         effect: Effect<A>;
     }
-    function Result<S,A>(state :S, effect : Effect<A>) : Result<S,A>
-    function Result<S,A>(state :S) : Result<S,Effect<A>>
+    function Result<S,A>(state :S, effect : Effect<A>) : Result<S,A & Effect<A>>
+    function Result<S,A>(state :S) : Result<S,A & Effect<A>>
 
     interface Action<K,V> {
         type : K;

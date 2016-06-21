@@ -18,7 +18,7 @@ import {
 import {Page, PageAction, Actions as PageActions} from './PageActions';
 
 enum Actions {
-    SubAction,
+    Delegate,
     Navigate,
 }
 
@@ -35,12 +35,18 @@ const pages = (page : Page) : Component<any, any, any> => {
     }
 }
 
+const delegateTo = (page : Page) => (action : Action<any, any>) =>
+    Action(Actions.Delegate,Action(page, action));
+
 export const init = () => {
+    const mainResult = pages(Page.Main).init();
+
+    const effect = mainResult.effect.map(delegateTo(Page.Main));
     return Result({
         page: Page.Main,
-        [Page.Main]: pages(Page.Main).init().state,
+        [Page.Main]: mainResult.state,
         [Page.Guess]: pages(Page.Guess).init().state,
-    }, Effect.none);
+    }, effect);
 };
 
 export const update = (state : any, action : AppAction) : any => {
@@ -53,7 +59,7 @@ export const update = (state : any, action : AppAction) : any => {
             state.page = page;
             return Result(state);
         }
-    } else if (type === Actions.SubAction){
+    } else if (type === Actions.Delegate){
         const {type: pageName, data: pageAction} = data;
         // delegate to sub component
         const component : Component<any,any,any> = pages(pageName);
@@ -67,7 +73,7 @@ export const update = (state : any, action : AppAction) : any => {
 export const view = (state : any, next : (action : AppAction) => void) => {
     const {page} : {page : Page} = state;
     const component : Component<any, any, any> = pages(page);
-    const delegate = (subaction : Action<any, any>) => next(Action(Actions.SubAction,Action(page, subaction)));
+    const delegate = (subaction : Action<any, any>) => next(delegateTo(page)(subaction));
     const navigate = (navAction : PageAction) => next(Action(Actions.Navigate, navAction));
     const content = component.view(state[page], delegate, navigate);
     return (

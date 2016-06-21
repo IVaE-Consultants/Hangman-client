@@ -1,7 +1,8 @@
 import * as React from 'react';
 import {Record, Map} from 'immutable';
-import {Action, Effect, Result} from 'effectjs';
+import {Action, Effect, Result, Component} from 'effectjs';
 import {Page, goToPage, PageAction} from './PageActions';
+import {perform} from '../utils';
 
 enum Actions {
     Increment,
@@ -18,17 +19,27 @@ const State = Record<StateAttrs>({
 
 type State = Record.IRecord<StateAttrs>;
 type MainAction = Action<Actions, any>;
-type MainResult = Result<State, Effect<MainAction>>;
+type MainResult = Result<State, MainAction>;
+
+const delay = (ms : number) : Promise<any> => {
+    return new Promise((resolve) => {
+        setTimeout(() => resolve(), ms);
+    });
+}
+
+const increment = Action(Actions.Increment);
 
 export const init = () : MainResult => {
     const state = State();
-    return Result(state, Effect.none);
+    const promise = delay(1000);
+    const effect = perform(promise, () => increment, (error) => increment);
+    return Result(state, effect);
 };
 
 export const update = (state : State, action : MainAction) : MainResult => {
     if(action.type === Actions.Increment) {
         const {x, y} = state;
-        const nextState = state.merge({y: 2});
+        const nextState = state.merge({y: y + 1});
         return Result(nextState);
     }
 };
@@ -40,7 +51,7 @@ import {
 } from 'react-native';
 
 export const view = (state : State, next : (action : MainAction) => void, navigate : (action : PageAction) => void) => {
-    const {x,y} = state;
+    const {y} = state;
     return (
     <TouchableHighlight onPress={()=> {navigate(goToPage(Page.Guess))}}>
         <View style={{
@@ -50,8 +61,10 @@ export const view = (state : State, next : (action : MainAction) => void, naviga
             height: 150,
             backgroundColor: 'green',
         }} >
-            <Text>This is main view {x} {y}</Text>
+        <Text>{y}</Text>
         </View>
     </TouchableHighlight>
    );
 };
+
+const component = {init,update,view} as Component<State, MainAction, any>;

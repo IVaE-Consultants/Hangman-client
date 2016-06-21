@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "dependencies": {
-    "effectjs": "0.0.8",
+    "effectjs": "0.1.0-beta",
     "immutable": "^3.8.1",
     "react": "^15.1.0",
     "react-native": "0.27.2"
