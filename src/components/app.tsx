@@ -71,7 +71,11 @@ export const view = (state : any, next : (action : AppAction) => void) => {
     const navigate = (navAction : PageAction) => next(Action(Actions.Navigate, navAction));
     const content = component.view(state[page], delegate, navigate);
     return (
-        <View style={{flex:1}}>
+        <View style={{
+            flex:1,
+            justifyContent: 'center',
+            alignItems: 'center',
+        }}>
         {content}
         </View>
    );
