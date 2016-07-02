@@ -25,3 +25,8 @@ declare module Immutable {
         defaultValues: T, name?: string
     ): Record.Factory<T>;
 }
+
+interface Array<T> {
+    includes(v : T) : boolean;
+}
+

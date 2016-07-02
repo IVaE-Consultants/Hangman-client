@@ -1,46 +1,56 @@
 import * as React from 'react';
-import {Record, Map} from 'immutable';
+import {Record, Map, List} from 'immutable';
 import {Action, Effect, Result, Component} from 'effectjs';
-import {Page, goToPage, PageAction} from './PageActions';
-import {perform} from '../utils';
+import * as Page from './Page';
+import * as Game from './game';
+import * as Guess from './guess';
+import {perform, range} from '../utils';
+
 
 enum Actions {
-    Increment,
+    Game,
 }
 
 interface StateAttrs {
-    x?: number;
-    y?: number;
+    games? : List<Game.state>;
 }
 const State = Record<StateAttrs>({
-    x: 1,
-    y: 2,
+    games: List([]),
 });
 
-type State = Record.IRecord<StateAttrs>;
-type MainAction = Action<Actions, any>;
-type MainResult = Result<State, MainAction>;
-
+type state = Record.IRecord<StateAttrs>;
+type action = Action<Actions, any>;
+type result = Result<state, action>;
 const delay = (ms : number) : Promise<any> => {
     return new Promise((resolve) => {
         setTimeout(() => resolve(), ms);
     });
 }
 
-const increment = Action(Actions.Increment);
+const gameAction = (index : number) => (action : Game.action) : action => Action(Actions.Game, {index, action});
 
-export const init = () : MainResult => {
-    const state = State();
-    const promise = delay(1000);
-    const effect = perform(promise, () => increment, (error) => increment);
+export const init = () : result => {
+    const results = range(0, 2).map(Game.init);
+    const games = List(results.map(({state}) => state));
+    const effects = results.map(({effect}, index) => effect.map(gameAction(index)));
+    const effect = Effect.all(effects);
+    const state = State({
+        games,
+    });
     return Result(state, effect);
 };
 
-export const update = (state : State, action : MainAction) : MainResult => {
-    if(action.type === Actions.Increment) {
-        const {x, y} = state;
-        const nextState = state.merge({y: y + 1});
-        return Result(nextState);
+export const update = (state : state, action : action) : result => {
+    const {type, data} = action;
+    if (type === Actions.Game) {
+        const {index, action} = data;
+        const {games} = state;
+        const {state: gameState, effect: gameEffect} = Game.update(games.get(index), action);
+        const nextState = state.merge({
+            games: games.set(index, gameState)
+        });
+        const effect = gameEffect.map(gameAction(index));
+        return Result(nextState, effect);
     }
 };
 
@@ -50,10 +60,9 @@ import {
     Text,
 } from 'react-native';
 
-export const view = (state : State, next : (action : MainAction) => void, navigate : (action : PageAction) => void) => {
-    const {y} = state;
+export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
+    const {games} = state;
     return (
-    <TouchableHighlight onPress={()=> {navigate(goToPage(Page.Guess))}}>
         <View style={{
             alignSelf: 'center',
             justifyContent: 'center',
@@ -61,10 +70,13 @@ export const view = (state : State, next : (action : MainAction) => void, naviga
             height: 150,
             backgroundColor: 'green',
         }} >
-        <Text>{y}</Text>
+        {games.map((game : Game.state) => {
+            return (<TouchableHighlight onPress={() => navigate(Page.push(Guess, game.theirWord.word))}>
+                <View>{Game.view(game)}</View>
+            </TouchableHighlight>)
+        })}
         </View>
-    </TouchableHighlight>
    );
 };
 
-const component = {init,update,view} as Component<State, MainAction, any>;
+const component = {init,update,view} as Component<state, action, any>;

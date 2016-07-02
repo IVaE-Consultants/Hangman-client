@@ -1,7 +1,8 @@
 import * as React from 'react';
-import {Action, Effect, Result} from 'effectjs';
-import {Page, goToPage, PageAction, Actions as PageActions} from './PageActions';
+import {Action, Effect, Result, Component} from 'effectjs';
+import * as Page from './Page';
 import {Record, Map} from 'immutable';
+import * as Game from './game';
 
 import {
     StyleSheet,
@@ -36,12 +37,10 @@ const State = Record<StateAttrs>({
     unknown: word.length,
 });
 
-type State = Record.IRecord<StateAttrs>;
-
-
+type state = Record.IRecord<StateAttrs>;
+type action = Action<Actions,Letter>;
+type result = Result<state,Effect<action>>;
 type Letter = string;
-type GuessAction = Action<Actions,Letter>;
-type GuessResult = Result<State,Effect<GuessAction>>;
 
 var {width, height} = require('Dimensions').get('window');
 var SIZE = 5; // four-by-four grid
@@ -51,17 +50,20 @@ var BORDER_RADIUS = CELL_PADDING * 2;
 var TILE_SIZE = CELL_SIZE - CELL_PADDING * 2;
 var LETTER_SIZE = Math.floor(TILE_SIZE * .75);
 
-export const init = () : GuessResult => {
-    return Result(State(), Effect.none);
+// type as Game component
+export const init = (word : string) : result => {
+    return Result(State({word}), Effect.none);
 };
 
-export const update = (state : State, action : GuessAction) : GuessResult => {
+export const update = (state : state, action : action) : result => {
     const {type, data} = action;
     if (type === Actions.GuessLetter) {
         // letter that was guessed
-        let letter = data;
+        let letter = data.toUpperCase();
         let {word} = state;
         let chars = [...word];
+        console.log("The word is: ", word);
+        console.log("Guessed letter: ", letter);
         if (state.guessed.get(letter)){
             console.log('ALREADY guessed that letter');
         }
@@ -74,7 +76,7 @@ export const update = (state : State, action : GuessAction) : GuessResult => {
         }, []);
         console.log(positions);
         // update revealed
-        
+
 
         // update guessed
         let newGuessed = state.guessed.set(letter, true);
@@ -88,11 +90,12 @@ export const update = (state : State, action : GuessAction) : GuessResult => {
     }
 };
 
-export const view = (state : State, next : (action : GuessAction) => void, navigate : (action : PageAction) => void) => {
+export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
     let board = renderTiles(next);
+    let correct = state.word;
     return (
         <View>
-            <TouchableHighlight onPress={()=> {navigate(goToPage(Page.Main))}}>
+            <TouchableHighlight onPress={()=> navigate(Page.back())}>
             <View style={{
                 width: 20,
                 height: 20,
@@ -100,6 +103,7 @@ export const view = (state : State, next : (action : GuessAction) => void, navig
             }}>
             </View>
             </TouchableHighlight>
+            <Text> {correct} </Text>
             <View style={styles.container}>
                     {board}
             </View>
@@ -107,7 +111,7 @@ export const view = (state : State, next : (action : GuessAction) => void, navig
    );
 };
 
-const renderTiles = (guess :(action :GuessAction)=> void) : any  => {
+const renderTiles = (guess :(action : action)=> void) : any  => {
     let result:any = [];
     for (var row = 0; row < SIZE; row++) {
       for (var col = 0; col < SIZE; col++) {

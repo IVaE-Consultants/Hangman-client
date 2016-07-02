@@ -2,7 +2,7 @@ declare namespace EffectJS {
     interface Component<S,A,V> {
         init : (...props: any[]) => Result<S, A>;
         update : (state : S, action : A) => Result<S, A>;
-        view : (state : S, ...next : ((action : Action<any, any>) => void)[]) => V;
+        view : (state : S, ...next : ((...a : any[]) => void)[]) => V;
         actions? : any;
     }
     interface Effect<A> {
