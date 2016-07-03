@@ -30,11 +30,19 @@ interface StateAttrs {
     word?: string;
     guessed?: Map<string,boolean>;
     unknown?: number;
+    tries?: number;
+    revealed?: string[];
+    firstKnown?: number;
+    lastKnown?: number;
 }
 const State = Record<StateAttrs>({
-    word: word,
+    word: undefined,
     guessed: guessed,
-    unknown: word.length,
+    unknown: undefined,
+    tries: 8,
+    revealed: [...Array(word.length+1).join('?')],
+    firstKnown: undefined,
+    lastKnown: undefined,
 });
 
 type state = Record.IRecord<StateAttrs>;
@@ -52,7 +60,12 @@ var LETTER_SIZE = Math.floor(TILE_SIZE * .75);
 
 // type as Game component
 export const init = (word : string) : result => {
-    return Result(State({word}), Effect.none);
+    const nextState = State({
+        word,
+        unknown: word.length,
+        revealed: [...Array(word.length+1).join('?')],
+    });
+    return Result(nextState, Effect.none);
 };
 
 export const update = (state : state, action : action) : result => {
@@ -60,12 +73,11 @@ export const update = (state : state, action : action) : result => {
     if (type === Actions.GuessLetter) {
         // letter that was guessed
         let letter = data.toUpperCase();
-        let {word} = state;
+        let {word, tries, revealed, unknown, firstKnown, lastKnown} = state;
         let chars = [...word];
-        console.log("The word is: ", word);
-        console.log("Guessed letter: ", letter);
         if (state.guessed.get(letter)){
             console.log('ALREADY guessed that letter');
+            return Result(state);
         }
         //Evaluate if correct or not
         const positions = chars.reduce((acc:number[], char: string, i:number) => {
@@ -75,24 +87,81 @@ export const update = (state : state, action : action) : result => {
             return acc;
         }, []);
         console.log(positions);
+        if (positions.length>0 && firstKnown == undefined){
+            firstKnown = positions[0];
+            lastKnown = positions[0];
+        }
+        let max = Math.max.apply(null, positions);
+        let min = Math.min.apply(null, positions);
+        // ensure no overflow
+        max = Math.min(max+1, word.length);
+        min = Math.max(min-1, 0);
+        lastKnown = (max>lastKnown) ? max  : lastKnown;
+        firstKnown = (min<firstKnown) ? min : firstKnown;
+       
+        console.log(firstKnown, lastKnown);
         // update revealed
-
+        revealed = revealed.map((curr : string, index : number) => {
+                if (positions.includes(index)){
+                    return chars[index];
+                }
+                // reveal the number of letters between the known
+                if (index>firstKnown && index<lastKnown && curr == '?'){
+                    return '*';
+                }
+                // reveal next to the first or last known to hint that word is longer
+                console.log("cheking!", (positions.includes(index+1) || positions.includes(index-1)) && curr == '?');
+                if ((positions.includes(index+1) || positions.includes(index-1)) && curr == '?'){
+                    return '*';
+                }
+                return curr;
+        });
+        unknown -= positions.length;
+        console.log("THE REVEALED,", revealed);
 
         // update guessed
         let newGuessed = state.guessed.set(letter, true);
 
-
         // update misses
+        if (positions.length == 0){
+            tries -= 1;
+        }
         //
         // return a new state
-        const newState = state.merge({guessed:newGuessed});
+        const newState = state.merge({guessed:newGuessed, revealed, tries, unknown, firstKnown, lastKnown});
         return Result(newState, Effect.none);
     }
 };
 
 export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
     let board = renderTiles(next);
-    let correct = state.word;
+    let {revealed, tries, word, unknown, firstKnown, lastKnown} = state;
+    let visible : any;
+    // have to check undefined cause firstknown can be 0
+    if(firstKnown!=undefined){
+        visible = revealed.slice(firstKnown, lastKnown+1);
+    }
+    console.log("VISIBLE:", visible);
+
+
+
+    let info = <View>
+                <Text> Tries left: {tries} </Text>
+                <Text> {visible} </Text>
+           </View>
+    if (tries == 0){
+        info = <View>
+                <Text> You Lost! Correct word was: </Text>
+               <Text> {word} </Text> 
+           </View>
+    }
+    if (unknown == 0){
+        info = <View>
+                <Text> YOU WON! Word was: </Text>
+               <Text> {word} </Text> 
+           </View>
+    }
+
     return (
         <View>
             <TouchableHighlight onPress={()=> navigate(Page.back())}>
@@ -103,7 +172,7 @@ export const view = (state : state, next? : (action : action) => void, navigate?
             }}>
             </View>
             </TouchableHighlight>
-            <Text> {correct} </Text>
+            {info}
             <View style={styles.container}>
                     {board}
             </View>
@@ -122,11 +191,11 @@ const renderTiles = (guess :(action : action)=> void) : any  => {
           top: row * CELL_SIZE + CELL_PADDING
         };
         result.push(
-          <View key={key} style={[styles.tile, position]}>
         <TouchableHighlight onPress={()=> {guess(Action(Actions.GuessLetter, letter))}}>
+          <View key={key} style={[styles.tile, position]}>
             <Text style={styles.letter}>{letter}</Text>
-        </TouchableHighlight>
           </View>
+        </TouchableHighlight>
         );
       }
     }
