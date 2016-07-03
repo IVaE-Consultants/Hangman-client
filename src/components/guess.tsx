@@ -23,7 +23,7 @@ const guessedLetters = chars.reduce( (acc: Guessed, letter: string) : Guessed  =
     return acc;
 }, {} as Guessed);
 
-const guessed = Map(guessedLetters);
+const guessed : Map<string, boolean> = Map(guessedLetters);
 const word = 'HELLO';
 
 interface StateAttrs {
@@ -134,7 +134,7 @@ export const update = (state : state, action : action) : result => {
 };
 
 export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
-    let board = renderTiles(next);
+    let board = renderTiles(state, next);
     let {revealed, tries, word, unknown, firstKnown, lastKnown} = state;
     let visible : any;
     // have to check undefined cause firstknown can be 0
@@ -180,7 +180,7 @@ export const view = (state : state, next? : (action : action) => void, navigate?
    );
 };
 
-const renderTiles = (guess :(action : action)=> void) : any  => {
+const renderTiles = (state : state, guess : (action : action)=> void) : any  => {
     let result:any = [];
     for (var row = 0; row < SIZE; row++) {
       for (var col = 0; col < SIZE; col++) {
@@ -190,9 +190,14 @@ const renderTiles = (guess :(action : action)=> void) : any  => {
           left: col * CELL_SIZE + CELL_PADDING,
           top: row * CELL_SIZE + CELL_PADDING
         };
+        const {guessed} = state;
+        let bg = {backgroundColor: '#BEE1D2'};
+        if (guessed.get(letter)){
+            bg = {backgroundColor: '#FF0000'};
+        }
         result.push(
         <TouchableHighlight onPress={()=> {guess(Action(Actions.GuessLetter, letter))}}>
-          <View key={key} style={[styles.tile, position]}>
+          <View key={key} style={[styles.tile, position, bg]}>
             <Text style={styles.letter}>{letter}</Text>
           </View>
         </TouchableHighlight>
