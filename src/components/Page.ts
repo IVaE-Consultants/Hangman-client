@@ -1,7 +1,7 @@
 import {Action, Component} from 'effectjs';
 
 export const enum Actions {
-    GoBack,
+    PopPage,
     PushPage,
 }
 
@@ -21,5 +21,5 @@ export const push = (component : Component<any, any, any>, data? : any) : action
     Action(Actions.PushPage, {component, data});
 
 export const back = (statusCode : StatusCode = StatusCode.Success) : action =>
-    Action(Actions.GoBack, statusCode);
+    Action(Actions.PopPage, statusCode);
 

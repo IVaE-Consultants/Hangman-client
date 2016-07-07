@@ -18,9 +18,9 @@ const State = Record<StateAttrs>({
     games: List([]),
 });
 
-type state = Record.IRecord<StateAttrs>;
-type action = Action<Actions, any>;
-type result = Result<state, action>;
+export type state = Record.IRecord<StateAttrs>;
+export type action = Action<Actions, any>;
+export type result = Result<state, action>;
 const delay = (ms : number) : Promise<any> => {
     return new Promise((resolve) => {
         setTimeout(() => resolve(), ms);

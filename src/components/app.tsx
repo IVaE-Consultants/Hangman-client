@@ -1,7 +1,8 @@
 import * as React from 'react';
 import * as guess from './guess'
 import * as main from './main'
-import {Record, Map, Stack} from 'immutable';
+import {Record, Map, Stack, OrderedMap} from 'immutable';
+
 
 import {
     Effect,
@@ -22,11 +23,9 @@ import {page} from './Page';
 enum Actions {
     Delegate,
     Navigate,
-    Back,
 }
 
-
-const getPage = (page : page) : Component<any, any, any> => {
+const getComponent = (page : page) : Component<any, any, any> => {
     if (page === Page.page.Main) {
         return main;
     } else if(page === Page.page.Guess) {
@@ -34,96 +33,94 @@ const getPage = (page : page) : Component<any, any, any> => {
     }
 }
 
-const delegateTo = (page : Component<any, any, any>) => (action : Action<any, any>) =>
-    Action(Actions.Delegate,Action(page, action));
+const delegateTo = (page : Page.page) => (action : Action<any, any>) =>
+    Action(Actions.Delegate, Action(page, action));
 
 
 interface StateAttrs {
-    pageStack? : Stack<StackElement>;
+    pageStack? : OrderedMap<Page.page, StackElement>;
 }
 
 const State = Record<StateAttrs>({
-    pageStack: Stack<StackElement>(),
+    pageStack: OrderedMap<Page.page, StackElement>(),
 });
 
 interface StackElement {
-    component? : Component<any, any,any>;
     state? : any;
 }
 
-const StackElem = (component : Component<any,any, any>, state : any) => {
+const StackElem = (state : any) => {
     return Record<StackElement>({
-        component,
         state,
     });
 }
 
 type StackRecord = Record.IRecord<StackElement>;
 type state = Record.IRecord<StateAttrs>;
-type action = Action<Actions, any>;
+type navigation = Action<Actions, Action<Page.Actions, Action<Page.page, any>>>;
+type delegation = Action<Actions, Action<Page.page, Action<any,any>>>
+type action = navigation | delegation;
 type result = Result<state, action>;
+
 
 export const init = () => {
     const {state: initState, effect: mainEffects} = main.init();
-    const mainPage = StackElem(main, initState)();
-    let pageStack = Stack<StackElement>([mainPage]);
+    const mainPage = StackElem(initState)();
+    let pageStack = OrderedMap<Page.page, StackElement>([[Page.page.Main, mainPage]]);
     const state = State({pageStack});
-
-    //const pages = [page.Main, page.Guess];
-    //const results = pages.map(page => {
-    //    return getPage(page).init();
-    //});
-    const effect =  mainEffects.map(delegateTo(main));
-    //const effects = results.map((result, i) => {
-     //   const page = pages[i];
-      //  return result.effect.map(delegateTo(page));
-    //});
-    //const effect = Effect.all(effects);
+    const effect =  mainEffects.map(delegateTo(Page.page.Main));
     return Result(state, effect);
 };
 
 export const update = (state : state, action : action) : result => {
     const {pageStack} = state;
-    const {type, data} = action;
+    const {type} = action;
+    console.log('action', action);
     if (type === Actions.Navigate) {
-        const {data: navAction} = action;
-        const {type: navType, data: page} = navAction;
+        console.log('navigate');
+        const {data: navAction} = action as navigation;
+        const {type: navType, data: pageAction} = navAction;
         if(navType === Page.Actions.PushPage) {
-            const {state: initState, effect: effects} = page.component.init(page.data);
-            const newStack = pageStack.push(StackElem(page.component, initState)());
+            const {type: page, data: state} = pageAction;
+            const component = getComponent(page);
+            const {state: initState, effect} = component.init(state);
+            const newStack = pageStack.set(page, initState);
             const nextState = state.merge({pageStack: newStack});
-            const effect = effects.map(delegateTo(page.component))
-            return Result(nextState, effect);
-        } else if(navType === Page.Actions.GoBack) {
-            const newStack = pageStack.pop();
+            const t = effect.map(delegateTo(page));
+            return Result(nextState, t);
+        } else if(navType === Page.Actions.PopPage) {
+            const page = pageStack.keys().next().value;
+            const newStack = pageStack.delete(page);
             const nextState = state.merge({pageStack: newStack});
             return Result(nextState);
         }
     } else if (type === Actions.Delegate){
-        // TODO: handle delegate
-        const {type: component, data: pageAction} = data;
-        //const {state: componentState, action: pageAction} = actionData;
-        // delegate to sub component
-        // TODO: need function that gives the state for a given component, using peek to say that it will be the current page can cause race conditions
-        const result = component.update(pageStack.peek().state, pageAction);
-        //const pages = state.pages.set(pageName, result.state);
-        const effect = result.effect.map(delegateTo(component));
-        // TODO:find correct stack element and update it's state. Poping and pushing is not such a nice solution
-        let newPageStack = pageStack.pop();
-        const p = StackElem(component, result.state)();
-        newPageStack = newPageStack.push(p);
+        console.log('delegate');
+        const {data} = action as delegation;
+        const {type: page, data: pageAction} = data;
+        
+        const component = getComponent(page);
+        const {pageStack} = state;
+        const stackElement = pageStack.get(page);
+        const result = component.update(stackElement.state, pageAction);
+        const effect = result.effect.map(delegateTo(page));
+        const newStackElement = StackElem(result.state)();
+        const newPageStack = pageStack.set(page, stackElement)
         const nextState = state.merge({pageStack: newPageStack});
+
         return Result(nextState, effect);
+    } else {
+        throw new Error('Invalid action type in app');
     }
 };
 
 export const view = (state : state, next : (action : action) => void) => {
     const {pageStack} = state;
-    const page = pageStack.peek();
-    const component : Component<any, any, any> = page.component;
-    const delegate = (subaction : Action<any, any>) => next(delegateTo(page.component)(subaction));
-    const navigate = (navAction : Page.action) => next(Action(Actions.Navigate, navAction));
-    const content = component.view(page.state, delegate, navigate);
+    const [page, stackElement] = pageStack.entries().next().value;
+    const component : Component<any, any, any> = getComponent(page);
+    const delegate = (subaction : Action<any, any>) => next(delegateTo(page)(subaction));
+    const navigate = (navAction : Page.action) => next(Action(Actions.Navigate, Action(page, navAction)));
+    const content = component.view(stackElement.state, delegate, navigate);
     return (
         <View style={{
             flex:1,

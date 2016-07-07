@@ -7,7 +7,8 @@
         "preserveConstEnums": true,
         "outDir": "built",
         "rootDir": "src",
-        "sourceMap": true
+        "sourceMap": true,
+        "allowJs": true
     },
     "filesGlob": [
         "typings/**/*.d.ts",
