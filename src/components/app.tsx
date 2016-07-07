@@ -47,7 +47,7 @@ const PageState = (state : any) : Record.Factory<IPageState> => {
     });
 }
 interface StateAttrs {
-    states? : OrderedMap<Page.page, PageState>;
+    states? : Map<Page.page, PageState>;
     pageStack? : Stack<Page.page>
 }
 const State = Record<StateAttrs>({
