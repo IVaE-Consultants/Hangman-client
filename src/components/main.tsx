@@ -71,7 +71,7 @@ export const view = (state : state, next? : (action : action) => void, navigate?
             backgroundColor: 'green',
         }} >
         {games.map((game : Game.state) => {
-            return (<TouchableHighlight onPress={() => navigate(Page.push(Guess, game.theirWord.word))}>
+            return (<TouchableHighlight onPress={() => navigate(Page.push(Page.page.Guess, game.theirWord.word))}>
                 <View>{Game.view(game)}</View>
             </TouchableHighlight>)
         })}

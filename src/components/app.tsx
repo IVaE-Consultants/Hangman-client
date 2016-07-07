@@ -57,7 +57,8 @@ const StackElem = (state : any) => {
 
 type StackRecord = Record.IRecord<StackElement>;
 type state = Record.IRecord<StateAttrs>;
-type navigation = Action<Actions, Action<Page.Actions, Action<Page.page, any>>>;
+type navigation = Action<Actions, Page.pushAction>
+    | Action<Actions, Page.popAction>;
 type delegation = Action<Actions, Action<Page.page, Action<any,any>>>
 type action = navigation | delegation;
 type result = Result<state, action>;
@@ -79,16 +80,18 @@ export const update = (state : state, action : action) : result => {
     if (type === Actions.Navigate) {
         console.log('navigate');
         const {data: navAction} = action as navigation;
-        const {type: navType, data: pageAction} = navAction;
-        if(navType === Page.Actions.PushPage) {
-            const {type: page, data: state} = pageAction;
+        console.log('test');
+        if(navAction.type === Page.Actions.PushPage) {
+            const {data: pageAction} = navAction as Page.pushAction;
+            const {type: page, data: pageState} = pageAction;
             const component = getComponent(page);
-            const {state: initState, effect} = component.init(state);
+            const {state: initState, effect} = component.init(pageState);
             const newStack = pageStack.set(page, initState);
             const nextState = state.merge({pageStack: newStack});
             const t = effect.map(delegateTo(page));
             return Result(nextState, t);
-        } else if(navType === Page.Actions.PopPage) {
+        } else if(navAction.type === Page.Actions.PopPage) {
+            const {data: pageAction} = navAction as Page.popAction;
             const page = pageStack.keys().next().value;
             const newStack = pageStack.delete(page);
             const nextState = state.merge({pageStack: newStack});
@@ -116,10 +119,15 @@ export const update = (state : state, action : action) : result => {
 
 export const view = (state : state, next : (action : action) => void) => {
     const {pageStack} = state;
+    console.log(pageStack.entries().next().value);
     const [page, stackElement] = pageStack.entries().next().value;
     const component : Component<any, any, any> = getComponent(page);
     const delegate = (subaction : Action<any, any>) => next(delegateTo(page)(subaction));
-    const navigate = (navAction : Page.action) => next(Action(Actions.Navigate, Action(page, navAction)));
+    const navigate = (navAction : Page.action) => {
+        const navigation = Action(Actions.Navigate, navAction);
+        console.log('nav', navigation);
+        next(navigation as navigation);
+    };
     const content = component.view(stackElement.state, delegate, navigate);
     return (
         <View style={{

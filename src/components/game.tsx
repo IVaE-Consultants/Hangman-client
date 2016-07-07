@@ -63,7 +63,7 @@ export const update = (state : state, action : action) : result  => {
 
 export const view = (state : state, next? : any) => {
     const {myWord, theirWord, name} = state;
-    return (<View style={{backgroundColor: 'red'}}>
+    return (<View style={{backgroundColor: 'green'}}>
         <Text>{name}</Text>
         <Text>{myWord.word}</Text>
     </View>);
