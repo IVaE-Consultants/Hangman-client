@@ -89,9 +89,10 @@ export const update = (state : state, action : action) : result => {
         const {data: navAction} = action;
         const {type: navType, data: page} = navAction;
         if(navType === Page.Actions.PushPage) {
-            const {state: initState, effect} = page.component.init(page.data);
+            const {state: initState, effect: effects} = page.component.init(page.data);
             const newStack = pageStack.push(StackElem(page.component, initState)());
             const nextState = state.merge({pageStack: newStack});
+            const effect = effects.map(delegateTo(page.component))
             return Result(nextState, effect);
         } else if(navType === Page.Actions.GoBack) {
             const newStack = pageStack.pop();
