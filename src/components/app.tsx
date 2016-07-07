@@ -109,14 +109,18 @@ export const update = (state : state, action : action) : result => {
         const component = getComponent(page);
         const {states} = state;
         const pageState = states.get(page);
-        const result = component.update(pageState.state, pageAction);
-        const effect = result.effect.map(delegateTo(page));
-        const newPageState = PageState(result.state)();
-        const newStates = states.set(page, newPageState);
-        const nextState = state.merge({
-            states: newStates,
-        });
-        return Result(nextState, effect);
+        if(pageState) {
+            const result = component.update(pageState.state, pageAction);
+            const effect = result.effect.map(delegateTo(page));
+            const newPageState = PageState(result.state)();
+            const newStates = states.set(page, newPageState);
+            const nextState = state.merge({
+                states: newStates,
+            });
+            return Result(nextState, effect);
+        } else {
+            return Result(state);
+        }
     } else {
         throw new Error('Invalid action type in app');
     }
