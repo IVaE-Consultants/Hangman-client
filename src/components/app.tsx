@@ -76,17 +76,19 @@ export const init = () => {
 export const update = (state : state, action : action) : result => {
     const {pageStack} = state;
     const {type} = action;
-    console.log('action', action);
     if (type === Actions.Navigate) {
-        console.log('navigate');
         const {data: navAction} = action as navigation;
-        console.log('test');
         if(navAction.type === Page.Actions.PushPage) {
             const {data: pageAction} = navAction as Page.pushAction;
             const {type: page, data: pageState} = pageAction;
             const component = getComponent(page);
             const {state: initState, effect} = component.init(pageState);
-            const newStack = pageStack.set(page, initState);
+            const nextPageState = StackElem(initState)();
+            const newStack = OrderedMap<Page.page, StackElement>([[page, nextPageState]]).withMutations(map => {
+                pageStack.remove(page).forEach((elem, page) => {
+                    map.set(page, elem);
+                });
+            });
             const nextState = state.merge({pageStack: newStack});
             const t = effect.map(delegateTo(page));
             return Result(nextState, t);
@@ -98,19 +100,16 @@ export const update = (state : state, action : action) : result => {
             return Result(nextState);
         }
     } else if (type === Actions.Delegate){
-        console.log('delegate');
         const {data} = action as delegation;
         const {type: page, data: pageAction} = data;
-        
         const component = getComponent(page);
         const {pageStack} = state;
         const stackElement = pageStack.get(page);
         const result = component.update(stackElement.state, pageAction);
         const effect = result.effect.map(delegateTo(page));
         const newStackElement = StackElem(result.state)();
-        const newPageStack = pageStack.set(page, newStackElement);
-        const nextState = state.merge({pageStack: newPageStack});
-
+        const newStack = pageStack.update(page, (before: any) => newStackElement);
+        const nextState = state.merge({pageStack: newStack});
         return Result(nextState, effect);
     } else {
         throw new Error('Invalid action type in app');
@@ -119,14 +118,11 @@ export const update = (state : state, action : action) : result => {
 
 export const view = (state : state, next : (action : action) => void) => {
     const {pageStack} = state;
-    console.log(pageStack.entries().next().value);
     const [page, stackElement] = pageStack.entries().next().value;
-    console.log(page, stackElement);
     const component : Component<any, any, any> = getComponent(page);
     const delegate = (subaction : Action<any, any>) => next(delegateTo(page)(subaction));
     const navigate = (navAction : Page.action) => {
         const navigation = Action(Actions.Navigate, navAction);
-        console.log('nav', navigation);
         next(navigation as navigation);
     };
     const content = component.view(stackElement.state, delegate, navigate);
