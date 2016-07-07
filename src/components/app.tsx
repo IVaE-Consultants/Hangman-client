@@ -108,7 +108,7 @@ export const update = (state : state, action : action) : result => {
         const result = component.update(stackElement.state, pageAction);
         const effect = result.effect.map(delegateTo(page));
         const newStackElement = StackElem(result.state)();
-        const newPageStack = pageStack.set(page, stackElement)
+        const newPageStack = pageStack.set(page, newStackElement);
         const nextState = state.merge({pageStack: newPageStack});
 
         return Result(nextState, effect);
@@ -121,6 +121,7 @@ export const view = (state : state, next : (action : action) => void) => {
     const {pageStack} = state;
     console.log(pageStack.entries().next().value);
     const [page, stackElement] = pageStack.entries().next().value;
+    console.log(page, stackElement);
     const component : Component<any, any, any> = getComponent(page);
     const delegate = (subaction : Action<any, any>) => next(delegateTo(page)(subaction));
     const navigate = (navAction : Page.action) => {
