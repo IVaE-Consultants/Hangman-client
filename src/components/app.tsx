@@ -38,24 +38,23 @@ const delegateTo = (page : Page.page) => (action : Action<any, any>) =>
 
 
 interface StateAttrs {
-    pageStack? : OrderedMap<Page.page, StackElement>;
+    pageStack? : OrderedMap<Page.page, StackRecord>;
 }
-
+type StackRecord = Record.IRecord<IStackElem>;
 const State = Record<StateAttrs>({
-    pageStack: OrderedMap<Page.page, StackElement>(),
+    pageStack: OrderedMap<Page.page, StackRecord>(),
 });
 
-interface StackElement {
+interface IStackElem {
     state? : any;
 }
 
-const StackElem = (state : any) => {
-    return Record<StackElement>({
+const StackElem = (state : any) : Record.Factory<IStackElem> => {
+    return Record<IStackElem>({
         state,
     });
 }
 
-type StackRecord = Record.IRecord<StackElement>;
 type state = Record.IRecord<StateAttrs>;
 type navigation = Action<Actions, Page.pushAction>
     | Action<Actions, Page.popAction>;
@@ -67,7 +66,7 @@ type result = Result<state, action>;
 export const init = () => {
     const {state: initState, effect: mainEffects} = main.init();
     const mainPage = StackElem(initState)();
-    let pageStack = OrderedMap<Page.page, StackElement>([[Page.page.Main, mainPage]]);
+    let pageStack = OrderedMap<Page.page, StackRecord>([[Page.page.Main, mainPage]]);
     const state = State({pageStack});
     const effect =  mainEffects.map(delegateTo(Page.page.Main));
     return Result(state, effect);
@@ -84,7 +83,7 @@ export const update = (state : state, action : action) : result => {
             const component = getComponent(page);
             const {state: initState, effect} = component.init(pageState);
             const nextPageState = StackElem(initState)();
-            const newStack = OrderedMap<Page.page, StackElement>([[page, nextPageState]]).withMutations(map => {
+            const newStack = OrderedMap<Page.page, StackRecord>([[page, nextPageState]]).withMutations(map => {
                 pageStack.remove(page).forEach((elem, page) => {
                     map.set(page, elem);
                 });
