@@ -15,10 +15,10 @@ export const enum page {
     Guess
 }
 
-export type action = Action<Actions, {component : any, data? : any}> | Action<Actions, StatusCode>;
+export type action = Action<Actions, {page : page, data? : any}> | Action<Actions, StatusCode>;
 
-export const push = (component : Component<any, any, any>, data? : any) : action =>
-    Action(Actions.PushPage, {component, data});
+export const push = (page : page , data? : any) : action =>
+    Action(Actions.PushPage, {page, data});
 
 export const back = (statusCode : StatusCode = StatusCode.Success) : action =>
     Action(Actions.PopPage, statusCode);
