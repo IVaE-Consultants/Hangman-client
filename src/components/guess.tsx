@@ -97,25 +97,25 @@ export const update = (state : state, action : action) : result => {
         let max = Math.max.apply(null, positions);
         let min = Math.min.apply(null, positions);
         // ensure no overflow
-        max = Math.min(max+1, word.length);
-        min = Math.max(min-1, 0);
-        lastKnown = (max>lastKnown) ? max  : lastKnown;
-        firstKnown = (min<firstKnown) ? min : firstKnown;
+        max = Math.min(max + 1, word.length);
+        min = Math.max(min - 1, 0);
+        lastKnown = (max > lastKnown) ? max : lastKnown;
+        firstKnown = (min < firstKnown) ? min : firstKnown;
         // update revealed
-        revealed = revealed.map((curr : string, index : number) => {
-                if (positions.includes(index)){
-                    return chars[index];
-                }
-                // reveal the number of letters between the known
-                if (index>firstKnown && index<lastKnown && curr == '?'){
-                    return '*';
-                }
-                // reveal next to the first or last known to hint that word is longer
-                console.log("cheking!", (positions.includes(index+1) || positions.includes(index-1)) && curr == '?');
-                if ((positions.includes(index+1) || positions.includes(index-1)) && curr == '?'){
-                    return '*';
-                }
-                return curr;
+        revealed = revealed.map((curr: string, index: number) => {
+            if (positions.includes(index)) {
+                return chars[index];
+            }
+            // reveal the number of letters between the known
+            if (index > firstKnown && index < lastKnown && curr == '?') {
+                return '*';
+            }
+            // reveal next to the first or last known to hint that word is longer
+            console.log("cheking!", (positions.includes(index + 1) || positions.includes(index - 1)) && curr == '?');
+            if ((positions.includes(index + 1) || positions.includes(index - 1)) && curr == '?') {
+                return '*';
+            }
+            return curr;
         });
         unknown -= positions.length;
 
@@ -163,7 +163,7 @@ export const view = (state : state, next? : (action : action) => void, navigate?
 
     return (
         <View>
-            <TouchableHighlight onPress={()=> navigate(Page.back())}>
+            <TouchableHighlight onPress={()=> navigate(Page.pop())}>
             <View style={{
                 width: 20,
                 height: 20,

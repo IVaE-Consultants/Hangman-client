@@ -22,6 +22,6 @@ export type action = pushAction | popAction;
 export const push = (page : page , data? : any) : pushAction =>
     Action(Actions.PushPage, Action(page, data));
 
-export const back = (statusCode : StatusCode = StatusCode.Success) : popAction =>
+export const pop = (statusCode : StatusCode = StatusCode.Success) : popAction =>
     Action(Actions.PopPage, statusCode);
 
