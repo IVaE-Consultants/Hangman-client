@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {Record, Map, List} from 'immutable';
+import {Record, Map, List, is as immutableEqual} from 'immutable';
 import {Action, Effect, Result, Component} from 'effectjs';
 import * as Page from './Page';
 import * as Game from './game';
@@ -13,9 +13,11 @@ enum Actions {
 
 interface StateAttrs {
     games? : List<Game.state>;
+    dataSource? : any;
 }
 const State = Record<StateAttrs>({
     games: List([]),
+    dataSource: List([]),
 });
 
 export type state = Record.IRecord<StateAttrs>;
@@ -30,12 +32,14 @@ const delay = (ms : number) : Promise<any> => {
 const gameAction = (index : number) => (action : Game.action) : action => Action(Actions.Game, {index, action});
 
 export const init = () : result => {
+    const ds = new ListView.DataSource({rowHasChanged: (r1, r2) => !immutableEqual(r1, r2)});
     const results = range(0, 2).map(Game.init);
     const games = List(results.map(({state}) => state));
     const effects = results.map(({effect}, index) => effect.map(gameAction(index)));
     const effect = Effect.all(effects);
     const state = State({
         games,
+        dataSource: ds.cloneWithRows(games.toArray()),
     });
     return Result(state, effect);
 };
@@ -44,10 +48,12 @@ export const update = (state : state, action : action) : result => {
     const {type, data} = action;
     if (type === Actions.Game) {
         const {index, action} = data;
-        const {games} = state;
+        const {games, dataSource} = state;
         const {state: gameState, effect: gameEffect} = Game.update(games.get(index), action);
+        const nextGames = games.set(index, gameState);
         const nextState = state.merge({
-            games: games.set(index, gameState)
+            games: nextGames,
+            dataSource: dataSource.cloneWithRows(nextGames.toArray())
         });
         const effect = gameEffect.map(gameAction(index));
         return Result(nextState, effect);
@@ -58,10 +64,18 @@ import {
     View,
     TouchableHighlight,
     Text,
+    ListView,
 } from 'react-native';
 
+const renderRow = (navigate: (action : Page.action) => void) => (game: Game.state) => {
+    console.log(game);
+    return (<TouchableHighlight onPress={() => navigate(Page.push(Page.page.Guess, game.theirWord.word))}>
+        <View>{Game.view(game)}</View>
+    </TouchableHighlight>)
+}
+
 export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
-    const {games} = state;
+    const {games, dataSource} = state;
     return (
         <View style={{
             alignSelf: 'center',
@@ -70,11 +84,10 @@ export const view = (state : state, next? : (action : action) => void, navigate?
             height: 150,
             backgroundColor: 'green',
         }} >
-        {games.map((game : Game.state) => {
-            return (<TouchableHighlight onPress={() => navigate(Page.push(Page.page.Guess, game.theirWord.word))}>
-                <View>{Game.view(game)}</View>
-            </TouchableHighlight>)
-        })}
+            <ListView
+                dataSource={dataSource}
+                renderRow={(game) => renderRow(navigate)(game)}
+            />
         </View>
    );
 };
