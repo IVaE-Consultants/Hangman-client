@@ -143,8 +143,6 @@ export const view = (state : state, next : (action : action) => void) => {
     return (
         <View style={{
             flex:1,
-            justifyContent: 'center',
-            alignItems: 'center',
         }}>
         {content}
         </View>

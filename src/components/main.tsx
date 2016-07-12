@@ -65,31 +65,46 @@ import {
     TouchableHighlight,
     Text,
     ListView,
+    StyleSheet
 } from 'react-native';
 
 const renderRow = (navigate: (action : Page.action) => void) => (game: Game.state) => {
     console.log(game);
-    return (<TouchableHighlight onPress={() => navigate(Page.push(Page.page.Guess, game.theirWord.word))}>
-        <View>{Game.view(game)}</View>
-    </TouchableHighlight>)
+    return (
+        <TouchableHighlight onPress={() => navigate(Page.push(Page.page.Guess, game.theirWord.word))}>
+            <View style={styles.row}>
+                {Game.view(game)}
+            </View>
+        </TouchableHighlight>
+    );
 }
 
 export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
     const {games, dataSource} = state;
     return (
-        <View style={{
-            alignSelf: 'center',
-            justifyContent: 'center',
-            width: 250,
-            height: 150,
-            backgroundColor: 'green',
-        }} >
+        <View style={styles.container} >
             <ListView
+                style={styles.listView}
                 dataSource={dataSource}
                 renderRow={(game) => renderRow(navigate)(game)}
             />
         </View>
    );
 };
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+    },
+    listView: {
+        marginTop: 50,
+        flex: 1,
+    },
+    row: {
+        height: 80,
+        borderTopWidth: 1,
+        borderColor: 'rgb(239,239,239)',
+    },
+})
 
 const component = {init,update,view} as Component<state, action, any>;
