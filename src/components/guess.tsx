@@ -163,7 +163,7 @@ export const view = (state : state, next? : (action : action) => void, navigate?
 
     return (
         <View style={styles.container as any}>
-            <TouchableHighlight onPress={()=> navigate(Page.back())}>
+            <TouchableHighlight onPress={()=> navigate(Page.pop())}>
             <View style={styles.backContainer}>
                 <Text style={styles.backText as any}>{'<'}</Text>
             </View>
