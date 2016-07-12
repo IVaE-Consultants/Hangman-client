@@ -118,7 +118,7 @@ export const view = (state: state, next?: (action: action) => void) => {
 }
 
 const getKeyPosition = (index: number, numOfKeys: number) => {
-    const keysPerRow = Math.ceil(numOfKeys / KEYBOARDROWS);
+    const keysPerRow = 5.19;//numOfKeys / KEYBOARDROWS;
     console.log("Number of keys per row is "+keysPerRow);
     
     let position = {
