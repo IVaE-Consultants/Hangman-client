@@ -15,7 +15,7 @@ export const enum Actions {
 
 const defaultActiveColor = '#BEE1D2';
 const defaultInactiveColor = '#FF0000';
-const defaultLanguage = 'eng';
+const defaultLanguage = 'swe';
 const defaultNumOfRows = 4;
 
 const getAlphabet = (language : string) : string[]=> {
@@ -34,8 +34,8 @@ const defaultKeyMap = () : keymap => {
     const alphabet = getAlphabet(defaultLanguage);
     const chars = alphabet;
     const keyMap = chars.reduce( (acc : keymap, letter : string) => {
-        //const key = Record<KeyAttrs>({letter,active: true, color: defaultActiveColor})();
-        const key = {letter, active: true, color: defaultActiveColor, position: undefined as [number, number]};
+        const key = Record<KeyAttrs>({letter,active: true, color: defaultActiveColor})();
+        //const key = {letter, active: true, color: defaultActiveColor, position: undefined as [number, number]};
         return acc.set(letter, key);
     }, Map<string, any>());
     return keyMap;
@@ -45,7 +45,6 @@ interface KeyAttrs {
     active?: boolean;
     letter?: string;
     color?: string;
-    position?: [number, number];
 }
 
 
@@ -76,7 +75,7 @@ export type action = Action<Actions,string>;
 export type result = Result<state,Effect<action>>;
 
 var {width, height} = require('Dimensions').get('window');
-var KEYBOARDROWS = 5; // Number of rows to divide letters in
+const KEYBOARDROWS = 5; // Number of rows to divide letters in
 var CELL_SIZE = Math.floor(width * .13); // 20% of the screen width
 var CELL_PADDING = Math.floor(CELL_SIZE * .05); // 5% of the cell size
 var BORDER_RADIUS = CELL_PADDING * 2;
@@ -96,17 +95,14 @@ export const init = () => {
     return Result(initState);
 }
 
-export const update= (state : state, action : action) => {
+export const update = (state : state, action : action) => {
     const {type, data} = action;
     const {keyMap} = state;
     if (type === Actions.Disable){
         console.log('Disable keeey should happen here');
         const key  = keyMap.get(data);
-        key.active = false;
-        key.color  = defaultInactiveColor;
-        console.log(key);
-        const newKeyMap = keyMap.set(data, key);
-        console.log(newKeyMap);
+        const newKey = key.merge({active:false, color:defaultInactiveColor});
+        const newKeyMap = keyMap.set(data, newKey);
         const newState = state.merge({keyMap: newKeyMap});
         return Result(newState);
     }
@@ -129,13 +125,9 @@ const getKeyPosition = (index : number, numOfKeys : number) : any => {
     const fourthRow = 'UVWXYZ';
     const keysPerRow = numOfKeys / KEYBOARDROWS;
     const col = index % KEYBOARDROWS;
-    let row = 0;
-    while (index>(row+1)*keysPerRow){
-        row += 1;
-    }
     let position = {
-      left: col * CELL_SIZE + CELL_PADDING,
-      top: row * CELL_SIZE + CELL_PADDING
+      left: (index%keysPerRow)* CELL_SIZE + CELL_PADDING,
+      top: Math.trunc(index/keysPerRow)* CELL_SIZE + CELL_PADDING,
     };
     return position;
 
@@ -144,6 +136,8 @@ const getKeyPosition = (index : number, numOfKeys : number) : any => {
 const renderTiles = (state : state, next : (action : action)=> void) : any  => {
     const {language, keyMap} = state;
     const chars = getAlphabet(language);
+    console.log("färgen är aldrig som vi vill ", keyMap.get('A').color);
+
     return chars.map<any>( ( char : string, index : number ) => {
         return (
             <TouchableHighlight key={char.charCodeAt(0)} onPress={()=> next(Action(Actions.Disable, char))}>

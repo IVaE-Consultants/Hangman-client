@@ -128,7 +128,7 @@ export const update = (state : state, action : action) : result => {
         }
         //
         // return a new state
-        const newState = state.merge({guessed:newGuessed, revealed, tries, unknown, firstKnown, lastKnown});
+        const newState = state.merge({keyboardState:nextKeyboardState, guessed:newGuessed, revealed, tries, unknown, firstKnown, lastKnown});
         return Result(newState, Effect.none);
     }
 };
