@@ -10,7 +10,9 @@ import {
 } from 'react-native';
 
 export const enum Actions {
+    Press,
     Disable,
+    SetBackgroundColor,
 }
 
 const defaultActiveColor = '#BEE1D2';
@@ -70,8 +72,11 @@ const State = Record<StateAttrs>({
 });
 
 export type state = Record.IRecord<StateAttrs>;
-export type action = Action<Actions, string>;
-export type result = Result<state, Effect<action>>;
+export type disableAction = Action<Actions, string>;
+export type pressAction = Action<Actions, string>;
+export type setBackgroundColorAction = Action<Actions, { key : string, color : string } >;
+export type action = pressAction | disableAction | setBackgroundColorAction;
+export type result = Result<state, Effect< action>>;
 
 const {width, height} = require('Dimensions').get('window');
 const KEYBOARDROWS = 5; // Number of rows to divide letters in
@@ -95,15 +100,24 @@ export const init = () => {
 }
 
 export const update = (state: state, action: action) => {
-    const {type, data} = action;
+    const {type} = action;
     const {keyMap} = state;
     if (type === Actions.Disable) {
-        console.log('Disable key should happen here');
+        const {data} = action as disableAction
         const key = keyMap.get(data);
         const newKey = key.merge({ active: false, color: defaultInactiveColor });
         const newKeyMap = keyMap.set(data, newKey);
         const newState = state.merge({ keyMap: newKeyMap });
         return Result(newState);
+    }else if (type === Actions.SetBackgroundColor){
+        const {data} = action as setBackgroundColorAction
+        const key = keyMap.get(data.key);
+        const newKey = key.merge({ color: data.color });
+        const newKeyMap = keyMap.set(data.key, newKey);
+        const newState = state.merge({ keyMap: newKeyMap });
+        return Result(newState);
+    } else if (type === Actions.Press){
+        return Result(state);
     }
     throw new Error('Ivalid action type keyboard');
 }
@@ -134,7 +148,7 @@ const renderTiles = (state: state, next: (action: action) => void) => {
     const chars = getAlphabet(language);
     return chars.map<any>((char: string, index: number) => {
         return (
-            <TouchableHighlight key={char.charCodeAt(0) } onPress={() => next(Action(Actions.Disable, char)) }>
+            <TouchableHighlight key={char.charCodeAt(0) } onPress={() => next(Action(Actions.Press, char)) }>
                 <View  style={[styles.tile, getKeyPosition(index, chars.length), { backgroundColor: keyMap.get(char).color }]}>
                     <Text style={styles.letter}>{char}</Text>
                 </View>

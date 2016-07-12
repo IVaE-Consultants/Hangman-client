@@ -49,7 +49,7 @@ const State = Record<StateAttrs>({
 });
 
 type state = Record.IRecord<StateAttrs>;
-type action = Action<Actions,Action<Keyboard.Actions, Letter>>;
+type action = Action<Actions,Keyboard.action> ;
 type result = Result<state,Effect<action>>;
 type Letter = string;
 
@@ -70,10 +70,9 @@ export const update = (state : state, action : action) : result => {
     const {type, data} = action;
     if (type === Actions.GuessLetter) {
         // data is Action(Keyboard.Actions.Disable, char)
-        const {data: char} = data;
+        const {data: char} = data as Keyboard.pressAction;
         // update keyboard
-        const {state: nextKeyboardState, effect: keyboardEffects} = Keyboard.update(state.keyboardState, data);
-
+        //const {state: nextKeyboardState, effect: keyboardEffects} = Keyboard.update(state.keyboardState, data);
 
         // letter that was guessed
         let letter = char.toUpperCase();
@@ -94,6 +93,11 @@ export const update = (state : state, action : action) : result => {
             firstKnown = positions[0];
             lastKnown = positions[0];
         }
+        const color = positions.length > 0 ? '#00ff00' : '#ff0000';
+        const {state: disabledState, effect: tmpEffect} = Keyboard.update(state.keyboardState, Action(Keyboard.Actions.Disable,char))
+        const {state: nextKeyboardState, effect: keyboardEffects} = 
+            Keyboard.update(disabledState, Action(Keyboard.Actions.SetBackgroundColor,{key:char,color:color}))
+
         let max = Math.max.apply(null, positions);
         let min = Math.min.apply(null, positions);
         // ensure no overflow
