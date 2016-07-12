@@ -28,7 +28,7 @@ const guessed : Map<string, boolean> = Map(guessedLetters);
 const word = 'HELLO';
 
 interface StateAttrs {
-    word?: string;
+    game?: Game.state;
     guessed?: Map<string,boolean>;
     unknown?: number;
     tries?: number;
@@ -38,7 +38,7 @@ interface StateAttrs {
     keyboardState?: Keyboard.state;
 }
 const State = Record<StateAttrs>({
-    word: undefined,
+    game: undefined,
     guessed: guessed,
     unknown: undefined,
     tries: 8,
@@ -54,11 +54,12 @@ type result = Result<state,Effect<action>>;
 type Letter = string;
 
 // type as Game component
-export const init = (word : string) : result => {
+export const init = (game : Game.state) : result => {
     const {state: keyboardState, effect} = Keyboard.init();
     // TODO: map effects
+    const word = game.theirWord.word;
     const nextState = State({
-        word,
+        game,
         unknown: word.length,
         revealed: [...Array(word.length+1).join('?')],
         keyboardState,
@@ -76,10 +77,10 @@ export const update = (state : state, action : action) : result => {
 
         // letter that was guessed
         let letter = char.toUpperCase();
-        let {word, tries, revealed, unknown, firstKnown, lastKnown} = state;
+        let {tries, revealed, unknown, firstKnown, lastKnown} = state;
+        const {game} = state;
         let chars = [...word];
         if (state.guessed.get(letter)){
-            console.log('ALREADY guessed that letter');
             return Result(state);
         }
         //Evaluate if correct or not
@@ -115,7 +116,6 @@ export const update = (state : state, action : action) : result => {
                 return '*';
             }
             // reveal next to the first or last known to hint that word is longer
-            console.log("cheking!", (positions.includes(index + 1) || positions.includes(index - 1)) && curr == '?');
             if ((positions.includes(index + 1) || positions.includes(index - 1)) && curr == '?') {
                 return '*';
             }
@@ -138,9 +138,10 @@ export const update = (state : state, action : action) : result => {
 };
 
 export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
-    const {keyboardState} = state;
+    const {game, keyboardState} = state;
     const testboard = Keyboard.view(keyboardState, (act : Keyboard.action) : void => next(Action(Actions.GuessLetter, act)));
-    let {revealed, tries, word, unknown, firstKnown, lastKnown} = state;
+    let {revealed, tries, unknown, firstKnown, lastKnown} = state;
+    const word = game.theirWord.word;
     let visible : any;
     // have to check undefined cause firstknown can be 0
     if(firstKnown!=undefined){

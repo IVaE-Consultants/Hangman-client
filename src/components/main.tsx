@@ -12,7 +12,7 @@ enum Actions {
 }
 
 interface StateAttrs {
-    games? : List<Game.state>;
+    games? : List<Game.state >;
     dataSource? : any;
 }
 const State = Record<StateAttrs>({
@@ -23,11 +23,6 @@ const State = Record<StateAttrs>({
 export type state = Record.IRecord<StateAttrs>;
 export type action = Action<Actions, any>;
 export type result = Result<state, action>;
-const delay = (ms : number) : Promise<any> => {
-    return new Promise((resolve) => {
-        setTimeout(() => resolve(), ms);
-    });
-}
 
 const gameAction = (index : number) => (action : Game.action) : action => Action(Actions.Game, {index, action});
 
@@ -69,9 +64,8 @@ import {
 } from 'react-native';
 
 const renderRow = (navigate: (action : Page.action) => void) => (game: Game.state) => {
-    console.log(game);
     return (
-        <TouchableHighlight onPress={() => navigate(Page.push(Page.page.Guess, game.theirWord.word))}>
+        <TouchableHighlight onPress={() => navigate(Page.push(Page.page.Guess, game))}>
             <View style={styles.row}>
                 {Game.view(game)}
             </View>
