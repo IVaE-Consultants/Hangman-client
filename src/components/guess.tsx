@@ -151,24 +151,21 @@ export const view = (state : state, next? : (action : action) => void, navigate?
     if (tries == 0){
         info = <View>
                 <Text> You Lost! Correct word was: </Text>
-               <Text> {word} </Text> 
+               <Text> {word} </Text>
            </View>
     }
     if (unknown == 0){
         info = <View>
                 <Text> YOU WON! Word was: </Text>
-               <Text> {word} </Text> 
+               <Text> {word} </Text>
            </View>
     }
 
     return (
-        <View>
+        <View style={styles.container as any}>
             <TouchableHighlight onPress={()=> navigate(Page.back())}>
-            <View style={{
-                width: 20,
-                height: 20,
-                backgroundColor: '#000000',
-            }}>
+            <View style={styles.backContainer}>
+                <Text style={styles.backText as any}>{'<'}</Text>
             </View>
             </TouchableHighlight>
             {info}
@@ -179,4 +176,21 @@ export const view = (state : state, next? : (action : action) => void, navigate?
    );
 };
 
+
+const styles = StyleSheet.create({
+    container: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 50,
+    },
+    backContainer: {
+        width: 50,
+        height: 50,
+    },
+    backText: {
+        fontSize: 32,
+        fontWeight: '300',
+        textAlign: 'center',
+    },
+});
 

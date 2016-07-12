@@ -111,7 +111,7 @@ export const update = (state: state, action: action) => {
 export const view = (state: state, next?: (action: action) => void) => {
     let board = renderTiles(state, next);
     return (
-        <View style={styles.container}>
+        <View style={styles.container as any}>
             {board}
         </View>
     );
@@ -120,7 +120,7 @@ export const view = (state: state, next?: (action: action) => void) => {
 const getKeyPosition = (index: number, numOfKeys: number) => {
     const keysPerRow = 5.19;//numOfKeys / KEYBOARDROWS;
     console.log("Number of keys per row is "+keysPerRow);
-    
+
     let position = {
         left: (index % keysPerRow) * CELL_SIZE + CELL_PADDING,
         top: Math.trunc(index / keysPerRow) * CELL_SIZE + CELL_PADDING,

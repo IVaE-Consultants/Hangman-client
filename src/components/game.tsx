@@ -4,7 +4,7 @@ import {Action, Effect, Result, Component} from 'effectjs';
 import {perform} from '../utils';
 import * as Word from './word';
 
-import {View, Text} from 'react-native';
+import {View, Text, StyleSheet} from 'react-native';
 
 
 const enum Actions{
@@ -63,9 +63,22 @@ export const update = (state : state, action : action) : result  => {
 
 export const view = (state : state, next? : any) => {
     const {myWord, theirWord, name} = state;
-    return (<View style={{backgroundColor: 'red'}}>
-        <Text>{name}</Text>
-        <Text>{myWord.word}</Text>
-    </View>);
+    return (
+        <View style={styles.container as any}>
+            <Text style={styles.textStyle}>{name}</Text>
+            <Text style={styles.textStyle}>{myWord.word}</Text>
+        </View>
+    );
 };
 
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    textStyle: {
+        fontSize: 16,
+        marginLeft: 20,
+    }
+})
