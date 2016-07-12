@@ -34,7 +34,7 @@ const getWord = () : Promise<string> => {
 }
 
 export const init = () : result => {
-    const effect = perform(getWord(), (word : string) => gotWord(word), (error : Error) => wordError(error));
+    const effect = perform(getWord(), (word : string) => gotWord(word), (error : Error) => gotWord('HELLO')); //wordError(error));
     return Result(State(), effect);
 }
 

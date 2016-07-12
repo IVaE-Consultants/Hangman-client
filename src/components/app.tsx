@@ -65,7 +65,9 @@ type result = Result<state, action>;
 
 
 export const init = () => {
+    console.log('before main init');
     const {state: initState, effect: mainEffects} = main.init();
+    console.log('after main init');
     const mainPage = PageState(initState)();
     const pageStack = Stack<Page.page>([Page.page.Main]);
     const states = Map<Page.page, PageState>([[Page.page.Main, mainPage]]);
@@ -83,6 +85,7 @@ export const update = (state : state, action : action) : result => {
             const {data: pageAction} = navAction as Page.pushAction;
             const {type: page, data: pageState} = pageAction;
             const component = getComponent(page);
+            console.log('Init page: ', page);
             const {state: initState, effect} = component.init(pageState);
             const nextPageState = PageState(initState)();
             const newStack = pageStack.push(page);

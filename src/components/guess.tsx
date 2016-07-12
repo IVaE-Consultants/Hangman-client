@@ -3,6 +3,7 @@ import {Action, Effect, Result, Component} from 'effectjs';
 import * as Page from './Page';
 import {Record, Map} from 'immutable';
 import * as Game from './game';
+import * as Keyboard from './keyboard';
 
 import {
     StyleSheet,
@@ -34,6 +35,7 @@ interface StateAttrs {
     revealed?: string[];
     firstKnown?: number;
     lastKnown?: number;
+    keyboardState?: Keyboard.state;
 }
 const State = Record<StateAttrs>({
     word: undefined,
@@ -43,27 +45,23 @@ const State = Record<StateAttrs>({
     revealed: [...Array(word.length+1).join('?')],
     firstKnown: undefined,
     lastKnown: undefined,
+    keyboardState: undefined,
 });
 
 type state = Record.IRecord<StateAttrs>;
-type action = Action<Actions,Letter>;
+type action = Action<Actions,Action<Keyboard.Actions, Letter>>;
 type result = Result<state,Effect<action>>;
 type Letter = string;
 
-var {width, height} = require('Dimensions').get('window');
-var SIZE = 5; // four-by-four grid
-var CELL_SIZE = Math.floor(width * .15); // 20% of the screen width
-var CELL_PADDING = Math.floor(CELL_SIZE * .05); // 5% of the cell size
-var BORDER_RADIUS = CELL_PADDING * 2;
-var TILE_SIZE = CELL_SIZE - CELL_PADDING * 2;
-var LETTER_SIZE = Math.floor(TILE_SIZE * .75);
-
 // type as Game component
 export const init = (word : string) : result => {
+    const {state: keyboardState, effect} = Keyboard.init();
+    // TODO: map effects
     const nextState = State({
         word,
         unknown: word.length,
         revealed: [...Array(word.length+1).join('?')],
+        keyboardState,
     });
     return Result(nextState, Effect.none);
 };
@@ -71,8 +69,14 @@ export const init = (word : string) : result => {
 export const update = (state : state, action : action) : result => {
     const {type, data} = action;
     if (type === Actions.GuessLetter) {
+        // data is Action(Keyboard.Actions.Disable, char)
+        const {data: char} = data;
+        // update keyboard
+        const {state: nextKeyboardState, effect: keyboardEffects} = Keyboard.update(state.keyboardState, data);
+
+
         // letter that was guessed
-        let letter = data.toUpperCase();
+        let letter = char.toUpperCase();
         let {word, tries, revealed, unknown, firstKnown, lastKnown} = state;
         let chars = [...word];
         if (state.guessed.get(letter)){
@@ -86,7 +90,6 @@ export const update = (state : state, action : action) : result => {
             }
             return acc;
         }, []);
-        console.log(positions);
         if (positions.length>0 && firstKnown == undefined){
             firstKnown = positions[0];
             lastKnown = positions[0];
@@ -98,8 +101,6 @@ export const update = (state : state, action : action) : result => {
         min = Math.max(min-1, 0);
         lastKnown = (max>lastKnown) ? max  : lastKnown;
         firstKnown = (min<firstKnown) ? min : firstKnown;
-       
-        console.log(firstKnown, lastKnown);
         // update revealed
         revealed = revealed.map((curr : string, index : number) => {
                 if (positions.includes(index)){
@@ -117,7 +118,6 @@ export const update = (state : state, action : action) : result => {
                 return curr;
         });
         unknown -= positions.length;
-        console.log("THE REVEALED,", revealed);
 
         // update guessed
         let newGuessed = state.guessed.set(letter, true);
@@ -134,15 +134,14 @@ export const update = (state : state, action : action) : result => {
 };
 
 export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
-    let board = renderTiles(state, next);
+    const {keyboardState} = state;
+    const testboard = Keyboard.view(keyboardState, (act : Keyboard.action) : void => next(Action(Actions.GuessLetter, act)));
     let {revealed, tries, word, unknown, firstKnown, lastKnown} = state;
     let visible : any;
     // have to check undefined cause firstknown can be 0
     if(firstKnown!=undefined){
         visible = revealed.slice(firstKnown, lastKnown+1);
     }
-    console.log("VISIBLE:", visible);
-
 
 
     let info = <View>
@@ -173,59 +172,11 @@ export const view = (state : state, next? : (action : action) => void, navigate?
             </View>
             </TouchableHighlight>
             {info}
-            <View style={styles.container}>
-                    {board}
+            <View>
+                    {testboard}
             </View>
         </View>
    );
 };
 
-const renderTiles = (state : state, guess : (action : action)=> void) : any  => {
-    let result:any = [];
-    for (var row = 0; row < SIZE; row++) {
-      for (var col = 0; col < SIZE; col++) {
-        let key = row * SIZE + col;
-        let letter = String.fromCharCode(65 + key);
-        let position = {
-          left: col * CELL_SIZE + CELL_PADDING,
-          top: row * CELL_SIZE + CELL_PADDING
-        };
-        const {guessed} = state;
-        let bg = {backgroundColor: '#BEE1D2'};
-        if (guessed.get(letter)){
-            bg = {backgroundColor: '#FF0000'};
-        }
-        result.push(
-        <TouchableHighlight onPress={()=> {guess(Action(Actions.GuessLetter, letter))}}>
-          <View key={key} style={[styles.tile, position, bg]}>
-            <Text style={styles.letter}>{letter}</Text>
-          </View>
-        </TouchableHighlight>
-        );
-      }
-    }
-    return result;
-}
 
-var styles = StyleSheet.create({
-  container: {
-    width: CELL_SIZE * SIZE,
-    height: CELL_SIZE * SIZE,
-    backgroundColor: 'transparent',
-  },
-  tile: {
-    position: 'absolute',
-    width: TILE_SIZE,
-    height: TILE_SIZE,
-    borderRadius: BORDER_RADIUS,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#BEE1D2',
-  },
-  letter: {
-    color: '#333',
-    fontSize: LETTER_SIZE,
-    fontFamily: 'Arial',
-    backgroundColor: 'transparent',
-  },
-});
