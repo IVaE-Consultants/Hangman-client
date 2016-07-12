@@ -10,6 +10,7 @@ import {
     View,
     TouchableHighlight,
     Text,
+    Image,
 } from 'react-native';
 
 const enum Actions {
@@ -167,6 +168,7 @@ export const view = (state : state, next? : (action : action) => void, navigate?
     }
 
     return (
+        <Image source={require('../../static/GuessBg.jpg')} style={styles.backgroundImage} >
         <View style={styles.container as any}>
             <TouchableHighlight onPress={()=> navigate(Page.pop())}>
             <View style={styles.backContainer}>
@@ -178,11 +180,15 @@ export const view = (state : state, next? : (action : action) => void, navigate?
                     {testboard}
             </View>
         </View>
+        </Image>
    );
 };
 
-
+// width and height null on bg : http://stackoverflow.com/questions/30273624/how-to-stretch-a-static-image-as-background-in-react-native
 const styles = StyleSheet.create({
+    backgroundImage: {
+        width: null,
+    },
     container: {
         justifyContent: 'center',
         alignItems: 'center',
