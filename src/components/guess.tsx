@@ -17,22 +17,9 @@ const enum Actions {
     GuessLetter,
 }
 
-type Guessed = {[key:string]: boolean};
-const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-const chars = [...alphabet];
-const guessedLetters = chars.reduce( (acc: Guessed, letter: string) : Guessed  => {
-    acc[letter] = false;
-    return acc;
-}, {} as Guessed);
-
-const guessed : Map<string, boolean> = Map(guessedLetters);
-const word = 'HELLO';
-
 interface StateAttrs {
     game?: Game.state;
-    guessed?: Map<string,boolean>;
     unknown?: number;
-    tries?: number;
     revealed?: string[];
     firstKnown?: number;
     lastKnown?: number;
@@ -40,10 +27,8 @@ interface StateAttrs {
 }
 const State = Record<StateAttrs>({
     game: undefined,
-    guessed: guessed,
     unknown: undefined,
-    tries: 8,
-    revealed: [...Array(word.length+1).join('?')],
+    revealed: undefined,
     firstKnown: undefined,
     lastKnown: undefined,
     keyboardState: undefined,
@@ -70,6 +55,7 @@ export const init = (game : Game.state) : result => {
 
 export const update = (state : state, action : action) : result => {
     const {type, data} = action;
+    const {game} = state;
     if (type === Actions.GuessLetter) {
         // data is Action(Keyboard.Actions.Disable, char)
         const {data: char} = data as Keyboard.pressAction;
@@ -78,10 +64,14 @@ export const update = (state : state, action : action) : result => {
 
         // letter that was guessed
         let letter = char.toUpperCase();
-        let {tries, revealed, unknown, firstKnown, lastKnown} = state;
-        const {game} = state;
+        const {round, roundStates} = game;
+        let {revealed, unknown, firstKnown, lastKnown} = state;
+        const word = game.theirWord.word;
         let chars = [...word];
-        if (state.guessed.get(letter)){
+        
+        // if already guessed letter, do nothing 
+        if (roundStates.get(round).guessedLetters.get(letter)){
+            console.log("already guessed that letter");
             return Result(state);
         }
         //Evaluate if correct or not
@@ -125,23 +115,26 @@ export const update = (state : state, action : action) : result => {
         unknown -= positions.length;
 
         // update guessed
-        let newGuessed = state.guessed.set(letter, true);
-
+        let newRoundStates = roundStates.setIn([round, 'guessedLetters', letter], true);
+        const tries = roundStates.get(round).triesLeft;
         // update misses
         if (positions.length == 0){
-            tries -= 1;
+            newRoundStates = newRoundStates.setIn([round, 'triesLeft'], tries-1);
         }
+        const newGameState = game.merge({roundStates: newRoundStates});
         //
         // return a new state
-        const newState = state.merge({keyboardState:nextKeyboardState, guessed:newGuessed, revealed, tries, unknown, firstKnown, lastKnown});
+        const newState = state.merge({keyboardState:nextKeyboardState, game: newGameState, revealed,  unknown, firstKnown, lastKnown});
         return Result(newState, Effect.none);
     }
 };
 
 export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
     const {game, keyboardState} = state;
+    const {round} = game;
     const testboard = Keyboard.view(keyboardState, (act : Keyboard.action) : void => next(Action(Actions.GuessLetter, act)));
-    let {revealed, tries, unknown, firstKnown, lastKnown} = state;
+    const {triesLeft} = game.roundStates.get(round);
+    let {revealed, unknown, firstKnown, lastKnown} = state;
     const word = game.theirWord.word;
     let visible : any;
     // have to check undefined cause firstknown can be 0
@@ -151,16 +144,18 @@ export const view = (state : state, next? : (action : action) => void, navigate?
 
 
     let info = <View>
-                <Text> Tries left: {tries} </Text>
+                <Text> Tries left: {triesLeft} </Text>
                 <Text> {visible} </Text>
            </View>
-    if (tries == 0){
+    if (triesLeft == 0){
+        // Update gameState to be complete but also lost
         info = <View>
                 <Text> You Lost! Correct word was: </Text>
                <Text> {word} </Text>
            </View>
     }
     if (unknown == 0){
+        // Update gameState to be complete and won
         info = <View>
                 <Text> YOU WON! Word was: </Text>
                <Text> {word} </Text>

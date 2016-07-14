@@ -1,29 +1,75 @@
 import * as React from 'react';
 import {Record, Map, List} from 'immutable';
 import {Action, Effect, Result, Component} from 'effectjs';
-import {perform} from '../utils';
+import {perform, Language, getAlphabet, range} from '../utils';
 import * as Word from './word';
 
 import {View, Text, StyleSheet} from 'react-native';
 
+
+const defaultNumOfRounds = 3;
 
 const enum Actions{
     MyWord,
     TheirWord,
 }
 
+const enum GameSteps{
+    createWord, 
+    guessWord,
+    complete,
+}
+
+type Guessed = Map<string, boolean>;
+
+interface RoundAttrs {
+    triesLeft?: number;
+    guessedLetters?: Map <string, boolean>;
+    won?: boolean;
+}
+
+const RoundState = Record<RoundAttrs>({
+    triesLeft: 8,
+    guessedLetters: undefined,
+    won: undefined,
+});
+
+type roundState = RoundAttrs & Record.TypedMap<RoundAttrs>; 
 
 interface StateAttrs {
     myWord? : Word.state;
     theirWord? : Word.state;
     name? : string;
+    step?: GameSteps;
+    round?: number;
+    language?: Language;
+    roundStates?: List< roundState >;
 }
 
 const State = Record<StateAttrs>({
     myWord: undefined,
     theirWord: undefined,
     name: undefined,
+    step: GameSteps.guessWord,
+    round: 1,
+    language: undefined,
+    roundStates: undefined,
 });
+
+const initRoundStates = (numOfRounds : number, language : Language) : List< RoundAttrs> => {
+    return List(range(0, numOfRounds).map( (roundIndex) => 
+        RoundState({
+            guessedLetters: initGuessedTable(language),
+        })
+    ));
+}
+
+const initGuessedTable = (language : Language) => {
+    const chars = getAlphabet(language);
+    return chars.reduce( (acc: Guessed, letter: string) : Guessed  => {
+        return acc.set(letter, false);
+    }, Map() as Guessed);
+}
 
 export type state = Record.IRecord<StateAttrs>;
 export type action = Action<Actions, Word.action>;
@@ -35,10 +81,19 @@ export const theirWord = (state : state) : string => {
 const myAction = (action : Word.action) : action => Action(Actions.MyWord, action);
 const theirAction = (action : Word.action) : action => Action(Actions.TheirWord, action);
 
-export const init = (index : number) : result => {
+export const init = (index : number, language : Language) : result => {
     const {state: myWord, effect: myEffect} = Word.init();
     const {state: theirWord, effect: theirEffect} = Word.init();
-    const state = State({myWord, theirWord, name: `Game ${index + 1}`});
+    const roundStates = initRoundStates(defaultNumOfRounds, language);
+    console.log(roundStates);
+    const state = State({
+        myWord, 
+        theirWord, 
+        name: `Game ${index + 1}`,
+        language,
+        roundStates,
+    });
+    console.log('GAME STATE: ', state);
     const effect = Effect.all([
         myEffect.map((action) => myAction(action)),
         theirEffect.map((action) => theirAction(action)),

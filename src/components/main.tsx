@@ -28,7 +28,7 @@ const gameAction = (index : number) => (action : Game.action) : action => Action
 
 export const init = () : result => {
     const ds = new ListView.DataSource({rowHasChanged: (r1, r2) => !immutableEqual(r1, r2)});
-    const results = range(0, 2).map(Game.init);
+    const results = range(0, 2).map((index) => Game.init(index, 'eng'));
     const games = List(results.map(({state}) => state));
     const effects = results.map(({effect}, index) => effect.map(gameAction(index)));
     const effect = Effect.all(effects);

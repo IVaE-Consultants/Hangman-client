@@ -17,3 +17,14 @@ export function perform<V,A>( promise : Promise<V>, ok : ((value: V) => A), fail
         .catch(fail);
     });
 }
+
+export type Language = 'eng' | 'swe';
+
+export const getAlphabet = (language: Language): string[] => {
+    if (language == 'swe') {
+        return [...'ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖ'];
+    } else if (language == 'eng') {
+        return [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'];
+    }
+    throw new Error('Not an available language: ' + language);
+}
