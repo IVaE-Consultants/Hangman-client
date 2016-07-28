@@ -15,7 +15,7 @@ const enum Actions{
 }
 
 const enum GameSteps{
-    createWord, 
+    createWord,
     guessWord,
     complete,
 }
@@ -34,11 +34,12 @@ const RoundState = Record<RoundAttrs>({
     won: undefined,
 });
 
-type roundState = RoundAttrs & Record.TypedMap<RoundAttrs>; 
+type roundState = RoundAttrs & Record.TypedMap<RoundAttrs>;
 
 interface StateAttrs {
     myWord? : Word.state;
     theirWord? : Word.state;
+    id? : number;
     name? : string;
     step?: GameSteps;
     round?: number;
@@ -52,12 +53,13 @@ const State = Record<StateAttrs>({
     name: undefined,
     step: GameSteps.guessWord,
     round: 1,
+    id: undefined,
     language: undefined,
     roundStates: undefined,
 });
 
 const initRoundStates = (numOfRounds : number, language : Language) : List< RoundAttrs> => {
-    return List(range(0, numOfRounds).map( (roundIndex) => 
+    return List(range(0, numOfRounds).map( (roundIndex) =>
         RoundState({
             guessedLetters: initGuessedTable(language),
         })
@@ -87,9 +89,10 @@ export const init = (index : number, language : Language) : result => {
     const roundStates = initRoundStates(defaultNumOfRounds, language);
     console.log(roundStates);
     const state = State({
-        myWord, 
-        theirWord, 
+        myWord,
+        theirWord,
         name: `Game ${index + 1}`,
+        id: index,
         language,
         roundStates,
     });

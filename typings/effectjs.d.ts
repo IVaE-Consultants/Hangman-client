@@ -1,6 +1,7 @@
 declare namespace EffectJS {
+    type Reply<A> = ((action : Action<any, any>) => Effect<Action<any, Action<any, A>>>);
     interface Component<S,A,V> {
-        init : (...props: any[]) => Result<S, A>;
+        init : (data? : any, reply? : Reply<any>) => Result<S, A>;
         update : (state : S, action : A) => Result<S, A>;
         view : (state : S, ...next : ((...a : any[]) => void)[]) => V;
         actions? : any;

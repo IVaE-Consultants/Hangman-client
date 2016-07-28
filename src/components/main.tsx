@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {Record, Map, List, is as immutableEqual} from 'immutable';
-import {Action, Effect, Result, Component} from 'effectjs';
+import {Action, Effect, Result, Component, Reply} from 'effectjs';
 import * as Page from './Page';
 import * as Game from './game';
 import * as Guess from './guess';
@@ -9,6 +9,7 @@ import {perform, range} from '../utils';
 
 enum Actions {
     Game,
+    Guess,
 }
 
 interface StateAttrs {
@@ -53,6 +54,7 @@ export const update = (state : state, action : action) : result => {
         const effect = gameEffect.map(gameAction(index));
         return Result(nextState, effect);
     }
+    throw new Error(`Invalid action type in main: ${type}`);
 };
 
 import {
@@ -64,8 +66,9 @@ import {
 } from 'react-native';
 
 const renderRow = (navigate: (action : Page.action) => void) => (game: Game.state) => {
+    const guessReply : Reply<action> = (reply : Guess.replies) => Effect(Action(Page.reply, Action(Page.page.Main, Action(Actions.Guess, reply))));
     return (
-        <TouchableHighlight onPress={() => navigate(Page.push(Page.page.Guess, game))}>
+        <TouchableHighlight onPress={() => navigate(Page.push(Page.page.Guess, game, guessReply))}>
             <View style={styles.row}>
                 {Game.view(game)}
             </View>

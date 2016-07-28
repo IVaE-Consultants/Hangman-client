@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {Action, Effect, Result, Component} from 'effectjs';
+import {Action, Effect, Result, Component, Reply} from 'effectjs';
 import * as Page from './Page';
 import {Record, Map} from 'immutable';
 import * as Game from './game';
@@ -24,6 +24,7 @@ interface StateAttrs {
     firstKnown?: number;
     lastKnown?: number;
     keyboardState?: Keyboard.state;
+    reply? : Reply<any>;
 }
 const State = Record<StateAttrs>({
     game: undefined,
@@ -32,20 +33,27 @@ const State = Record<StateAttrs>({
     firstKnown: undefined,
     lastKnown: undefined,
     keyboardState: undefined,
+    reply: undefined,
 });
 
 type state = Record.IRecord<StateAttrs>;
-type action = Action<Actions,Keyboard.action> ;
+type action = Action<Actions,Keyboard.action>;
 type result = Result<state,Effect<action>>;
 type Letter = string;
 
+export const enum Replies {
+    GameChanged,
+}
+export type replies = Action<Replies, any>;
+
 // type as Game component
-export const init = (game : Game.state) : result => {
+export const init = (game : Game.state, reply : Reply<any>) : result => {
     const {state: keyboardState, effect} = Keyboard.init();
     // TODO: map effects
     const word = game.theirWord.word;
     const nextState = State({
         game,
+        reply,
         unknown: word.length,
         revealed: [...Array(word.length+1).join('?')],
         keyboardState,
@@ -68,8 +76,8 @@ export const update = (state : state, action : action) : result => {
         let {revealed, unknown, firstKnown, lastKnown} = state;
         const word = game.theirWord.word;
         let chars = [...word];
-        
-        // if already guessed letter, do nothing 
+
+        // if already guessed letter, do nothing
         if (roundStates.get(round).guessedLetters.get(letter)){
             console.log("already guessed that letter");
             return Result(state);
@@ -87,7 +95,7 @@ export const update = (state : state, action : action) : result => {
         }
         const color = positions.length > 0 ? '#00ff00' : '#ff0000';
         const {state: disabledState, effect: tmpEffect} = Keyboard.update(state.keyboardState, Action(Keyboard.Actions.Disable,char))
-        const {state: nextKeyboardState, effect: keyboardEffects} = 
+        const {state: nextKeyboardState, effect: keyboardEffects} =
             Keyboard.update(disabledState, Action(Keyboard.Actions.SetBackgroundColor,{key:char,color:color}))
 
         let max = Math.max.apply(null, positions);
@@ -124,8 +132,10 @@ export const update = (state : state, action : action) : result => {
         const newGameState = game.merge({roundStates: newRoundStates});
         //
         // return a new state
+        const {reply} = state;
         const newState = state.merge({keyboardState:nextKeyboardState, game: newGameState, revealed,  unknown, firstKnown, lastKnown});
-        return Result(newState, Effect.none);
+        const effect = reply(Action(Replies.GameChanged, newGameState));
+        return Result(newState, effect);
     }
 };
 
