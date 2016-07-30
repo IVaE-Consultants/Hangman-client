@@ -53,6 +53,22 @@ export const update = (state : state, action : action) : result => {
         });
         const effect = gameEffect.map(gameAction(index));
         return Result(nextState, effect);
+    } else if (type === Actions.Guess) {
+        const replyAction : Action<Guess.Replies, any> = data;
+        const {type:reply} = replyAction;
+        if (reply === Guess.Replies.GameChanged){
+            const {data:newGameState} = replyAction;
+            // find game to update in games list
+            const index = state.games.findKey((game) => game.id == newGameState.id);
+            const nextGames = state.games.set(index, newGameState);
+            const nextState = state.merge({
+                games: nextGames,
+                dataSource: state.dataSource.cloneWithRows(nextGames.toArray()),
+            });
+            return Result(nextState);
+        }
+        throw new Error('Invalid reply from Guess to main');
+
     }
     throw new Error(`Invalid action type in main: ${type}`);
 };

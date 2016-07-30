@@ -52,7 +52,7 @@ const State = Record<StateAttrs>({
     theirWord: undefined,
     name: undefined,
     step: GameSteps.guessWord,
-    round: 1,
+    round: 0,
     id: undefined,
     language: undefined,
     roundStates: undefined,
