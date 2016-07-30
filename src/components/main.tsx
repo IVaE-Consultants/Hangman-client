@@ -66,7 +66,8 @@ import {
 } from 'react-native';
 
 const renderRow = (navigate: (action : Page.action) => void) => (game: Game.state) => {
-    const guessReply : Reply<action> = (reply : Guess.replies) => Effect(Action(Page.reply, Action(Page.page.Main, Action(Actions.Guess, reply))));
+    const guessReply : Reply<action> = (reply : Guess.replies) => Effect.call(() => Action(Page.reply, Action(Page.page.Main, Action(Actions.Guess, reply))));
+    
     return (
         <TouchableHighlight onPress={() => navigate(Page.push(Page.page.Guess, game, guessReply))}>
             <View style={styles.row}>
