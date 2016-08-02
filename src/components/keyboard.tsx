@@ -76,7 +76,7 @@ export type disableAction = Action<Actions, string>;
 export type pressAction = Action<Actions, string>;
 export type setBackgroundColorAction = Action<Actions, { key : string, color : string } >;
 export type action = pressAction | disableAction | setBackgroundColorAction;
-export type result = Result<state, Effect< action>>;
+export type result = Result<state, Effect<action>>;
 
 const {width, height} = require('Dimensions').get('window');
 const KEYBOARDROWS = 5; // Number of rows to divide letters in
