@@ -83,7 +83,7 @@ export const theirWord = (state : state) : string => {
 const myAction = (action : Word.action) : action => Action(Actions.MyWord, action);
 const theirAction = (action : Word.action) : action => Action(Actions.TheirWord, action);
 
-export const init = (index : number, language : Language) : result => {
+export const init = (id : string, language : Language) : result => {
     const {state: myWord, effect: myEffect} = Word.init();
     const {state: theirWord, effect: theirEffect} = Word.init();
     const roundStates = initRoundStates(defaultNumOfRounds, language);
@@ -91,8 +91,8 @@ export const init = (index : number, language : Language) : result => {
     const state = State({
         myWord,
         theirWord,
-        name: `Game ${index + 1}`,
-        id: index,
+        name: `Game`,
+        id: id,
         language,
         roundStates,
     });
