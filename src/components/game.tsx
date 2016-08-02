@@ -83,7 +83,12 @@ export const theirWord = (state : state) : string => {
 const myAction = (action : Word.action) : action => Action(Actions.MyWord, action);
 const theirAction = (action : Word.action) : action => Action(Actions.TheirWord, action);
 
-export const init = (id : string, language : Language) : result => {
+type options = {
+    id : string;
+    language : Language;
+}
+
+export const init = ({id, language} : options) : result => {
     const {state: myWord, effect: myEffect} = Word.init();
     const {state: theirWord, effect: theirEffect} = Word.init();
     const roundStates = initRoundStates(defaultNumOfRounds, language);
@@ -140,3 +145,5 @@ const styles = StyleSheet.create({
         marginLeft: 20,
     }
 })
+
+export const component = {init,update,view} as Component<state, action, any>;

@@ -38,7 +38,7 @@ const State = Record<StateAttrs>({
 
 type state = Record.IRecord<StateAttrs>;
 type action = Action<Actions,Keyboard.action>;
-type result = Result<state,Effect<action>>;
+type result = Result<state,action>;
 type Letter = string;
 
 export const enum Replies {
@@ -189,6 +189,7 @@ export const view = (state : state, next? : (action : action) => void, navigate?
    );
 };
 
+
 // width and height null on bg : http://stackoverflow.com/questions/30273624/how-to-stretch-a-static-image-as-background-in-react-native
 const styles = StyleSheet.create({
     backgroundImage: {
@@ -210,3 +211,4 @@ const styles = StyleSheet.create({
     },
 });
 
+export const component = {init,update,view} as Component<state, action, any>;

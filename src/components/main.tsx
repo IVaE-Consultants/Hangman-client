@@ -71,7 +71,7 @@ export const update = (state : state, action : action) : result => {
         throw new Error('Invalid reply from Guess to main');
     } else if (type === Actions.CreateGame){
         const id = uuid.v4(); 
-        const {state: newGame, effect: gameEffect} = Game.init(id, 'eng');
+        const {state: newGame, effect: gameEffect} = Game.init({id, language: 'eng'});
         const newGameStates = state.games.push(newGame);
         const nextState = state.merge({
             games: newGameStates,
@@ -142,4 +142,4 @@ const styles = StyleSheet.create({
     },
 })
 
-const component = {init,update,view} as Component<state, action, any>;
+export const component = {init,update,view} as Component<state, action, any>;
