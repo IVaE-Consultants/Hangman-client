@@ -81,9 +81,9 @@ export const update = (state : state, action : action) : result => {
         const {data: navAction} = action as navigation;
         if(navAction.type === Page.Actions.PushPage) {
             const {data: pageAction} = navAction as Page.pushAction;
-            const {type: page, data: pageState} = pageAction;
+            const {type: page, data: {data: pageState, reply}} = pageAction;
             const component = getComponent(page);
-            const {state: initState, effect} = component.init(pageState);
+            const {state: initState, effect} = component.init(pageState, reply);
             const nextPageState = PageState(initState)();
             const newStack = pageStack.push(page);
             const newStates = states.set(page, nextPageState);
@@ -111,7 +111,15 @@ export const update = (state : state, action : action) : result => {
         const pageState = states.get(page);
         if(pageState) {
             const result = component.update(pageState.state, pageAction);
-            const effect = result.effect.map(delegateTo(page));
+            const effect = result.effect.map(action => {
+                const {type} = action;
+                if(type === Page.reply) {
+                    const {data: {type: page, data: pageAction}} = action;
+                    return delegateTo(page)(pageAction);
+                } else {
+                    return delegateTo(page)(action);
+                }
+            });
             const newPageState = PageState(result.state)();
             const newStates = states.set(page, newPageState);
             const nextState = state.merge({

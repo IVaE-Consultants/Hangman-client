@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {Record, Map, List, is as immutableEqual} from 'immutable';
-import {Action, Effect, Result, Component} from 'effectjs';
+import {Action, Effect, Result, Component, Reply} from 'effectjs';
 import * as Page from './Page';
 import * as Game from './game';
 import * as Guess from './guess';
@@ -9,6 +9,7 @@ import {perform, range} from '../utils';
 
 enum Actions {
     Game,
+    Guess,
 }
 
 interface StateAttrs {
@@ -52,7 +53,24 @@ export const update = (state : state, action : action) : result => {
         });
         const effect = gameEffect.map(gameAction(index));
         return Result(nextState, effect);
+    } else if (type === Actions.Guess) {
+        const replyAction : Action<Guess.Replies, any> = data;
+        const {type:reply} = replyAction;
+        if (reply === Guess.Replies.GameChanged){
+            const {data:newGameState} = replyAction;
+            // find game to update in games list
+            const index = state.games.findKey((game) => game.id == newGameState.id);
+            const nextGames = state.games.set(index, newGameState);
+            const nextState = state.merge({
+                games: nextGames,
+                dataSource: state.dataSource.cloneWithRows(nextGames.toArray()),
+            });
+            return Result(nextState);
+        }
+        throw new Error('Invalid reply from Guess to main');
+
     }
+    throw new Error(`Invalid action type in main: ${type}`);
 };
 
 import {
@@ -64,8 +82,10 @@ import {
 } from 'react-native';
 
 const renderRow = (navigate: (action : Page.action) => void) => (game: Game.state) => {
+    const guessReply : Reply<action> = (reply : Guess.replies) => Effect.call(() => Action(Page.reply, Action(Page.page.Main, Action(Actions.Guess, reply))));
+    
     return (
-        <TouchableHighlight onPress={() => navigate(Page.push(Page.page.Guess, game))}>
+        <TouchableHighlight onPress={() => navigate(Page.push(Page.page.Guess, game, guessReply))}>
             <View style={styles.row}>
                 {Game.view(game)}
             </View>
