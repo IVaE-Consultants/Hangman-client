@@ -10,15 +10,34 @@ const uuid = require('uuid');
 enum Actions {
     stateChanged,
     delegate,
-    Done,
+    done,
+    move,
 }
+interface LetterAttrs{
+    x?:number;
+    y?:number;
+    offsetX?:number;
+    offsetY?:number;
+    character?:string;
+    id?:string;
+};
 
+type Letter = Record.IRecord<LetterAttrs>
+const Letter = Record<LetterAttrs>({
+    x:0,
+    y:0,
+    offsetX:0,
+    offsetY:0,
+    character:"f",
+    id:undefined,
+});
 interface StateAttrs {
     reply? : Reply<any>;
     components?: Map<string, Component<any,any,any>>;
     states?: Map<string, any>;
     game?: Game.state;
     mappers?: Map<string, mapper>;
+    letters?:List<Letter>;
 }
 const State = Record<StateAttrs>({
     reply: undefined,
@@ -26,6 +45,7 @@ const State = Record<StateAttrs>({
     states: undefined,
     game: undefined,
     mappers: undefined,
+    letters: undefined,
 });
 
 export type replies = Action<Replies, any>;
@@ -98,6 +118,12 @@ type SubState = state  ;
 
 export const init = (game : Game.state, reply? : Reply<any>) : result => {
 
+    const letters = List<Letter>([
+        Letter({id : uuid.v4(),character:"p"}),
+        Letter({id : uuid.v4(),character:"a"}),
+        Letter({id : uuid.v4(),character:"u"}),
+        Letter({id : uuid.v4(),character:"l"}),
+        ]);
     // Init subcomponents and map the effects
     const componentList : config<SubState, any>[] = [
    //     {component: Component1.component},
@@ -111,6 +137,7 @@ export const init = (game : Game.state, reply? : Reply<any>) : result => {
         states,
         mappers,
         game,
+        letters,
     });
     return Result(state, effect);
 };
@@ -124,15 +151,24 @@ export const update = (state : state, action : action) : result => {
         const [states, effect] = handleDelagation(state, data);
         const nextState = state.merge({states});
         return Result(nextState, effect);
-    } else if (type === Actions.Done) {
+    } else if (type === Actions.done) {
         const {state:gameState, effect:gameEffect}  = Game.update(state.game, Action(Game.Actions.NextGameStep, undefined));
         const replyEffect = state.reply(Action(Replies.GameChanged ,gameState));
         //TODO: handle effects
-        return Result(gameState, replyEffect);
+        const newState = state.merge({game:gameState});
+        return Result(newState, replyEffect);
+    } else if (type == Actions.move){
+        const {newLetter:letter} = data;
+        const {letters} = state;
+        const letterIndex = letters.findKey((item:Letter)=> item.id === letter.id);
+        const newLetters = letters.remove(letterIndex).push(letter);
+        const nextState = state.merge({letters: newLetters});
+        return Result(nextState);
     }
     // TODO: change component to component name
     throw new Error(`Invalid action type in component: ${type}`);
 };
+
 
 import {
     View,
@@ -142,19 +178,51 @@ import {
 } from 'react-native';
 
 
+const setPosition = (letter:Letter, next: (action : action)=> void) => (e:any) => {
+    const pressX = e.nativeEvent.pageX as number;
+    const pressY = e.nativeEvent.pageY as number;
+    const {offsetX, offsetY, x, y} = letter;
+    const newLetter = letter.merge({x:x+pressX-offsetX, y:y+pressY-offsetY, offsetX:pressX, offsetY:pressY});
+    next(Action(Actions.move, {newLetter}));      
+};
+const setStartPosition = (letter:Letter, next: (action : action)=> void) => (e:any) =>{
+    const x = e.nativeEvent.pageX as number;
+    const y = e.nativeEvent.pageY as number;
+    const newLetter = letter.merge({offsetX: x, offsetY: y});
+    next(Action(Actions.move, {newLetter}));    
+};
+
+const returnTrue=() => { return true;};
+
+const getTransform = (letter:Letter, state : state) =>{
+    const transform = [{translateX: letter.x}, {translateY:letter.y}]
+    return {transform:transform};
+}
 
 export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
+    const letterViews = state.letters.map(letter => {
+                return (<View
+                    onResponderMove={setPosition(letter, next)}
+                    onResponderGrant={setStartPosition(letter, next)}
+                    onStartShouldSetResponder={returnTrue}
+                    onMoveShouldSetResponder={returnTrue}
+                    style={[styles.tile, getTransform(letter, state)]}
+                    key={letter.id}>
+                    <Text style={[styles.letter]}>{letter.character}</Text>
+                </View>)
+            });
     return (
-        <View style={styles.container}>
-            <TouchableHighlight style={styles.backButton} onPress={() => { next(Action(Actions.Done)); navigate(Page.pop()) }} > 
-                <View>
-                    <Text> Done! </Text>
-                </View>
-            </TouchableHighlight>
-            
-
+        <View>
+            <View style={styles.container}>
+                <TouchableHighlight style={styles.backButton} onPress={() => { next(Action(Actions.done)); navigate(Page.pop()) }} > 
+                    <View>
+                        <Text> Done! </Text>
+                    </View>
+                </TouchableHighlight>
+            </View>
+            {letterViews}
         </View>
-   );
+   )
 };
 
 
@@ -174,7 +242,24 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderColor: 'rgb(239,239,239)',
     },
-}) 
+    tile: {
+        position: 'absolute',
+        width: 48,
+        height: 48,
+        borderRadius: 4,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: "#BEE1D2",
+        borderColor: "#222",
+        borderWidth:2,
+    },
+    letter: {
+        color: '#333',
+        fontSize: 28,
+        fontFamily: 'Arial',
+        backgroundColor: 'transparent',
+    },
+});
 
 
 export const component = {init, update, view} as Component<state, action, any>;

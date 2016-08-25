@@ -141,7 +141,7 @@ export const update = (state : state, action : action) : result => {
         const {data: char} = data as Keyboard.pressAction;
         const myWord = oldWord ? oldWord + char : char;
         const nextState = state.merge({myWord});
-        return Result(nextState); 
+        return Result(nextState);
     } else if (type === Actions.Done){
         const {game, myWord, reply} = state;
         if (myWord) {
