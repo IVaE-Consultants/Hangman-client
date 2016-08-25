@@ -1,6 +1,7 @@
 import * as React from 'react';
-import * as guess from './guess'
-import * as main from './main'
+import * as guess from './guess';
+import * as main from './main';
+import * as createWord from './createWord';
 import {Record, Map, Stack, OrderedMap} from 'immutable';
 
 
@@ -30,6 +31,8 @@ const getComponent = (page : page) : Component<any, any, any> => {
         return main;
     } else if(page === Page.page.Guess) {
         return guess;
+    } else if(page === Page.page.CreateWord) {
+        return createWord;
     }
 }
 
@@ -75,6 +78,7 @@ export const init = () => {
 };
 
 export const update = (state : state, action : action) : result => {
+    console.log('UPDATE IN AAPP', action);
     const {pageStack, states} = state;
     const {type} = action;
     if (type === Actions.Navigate) {
@@ -130,7 +134,7 @@ export const update = (state : state, action : action) : result => {
             return Result(state);
         }
     } else {
-        throw new Error('Invalid action type in app');
+        throw new Error(`Invalid action type in app: ${type}`);
     }
 };
 

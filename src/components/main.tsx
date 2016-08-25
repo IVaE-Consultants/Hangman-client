@@ -4,6 +4,7 @@ import {Action, Effect, Result, Component, Reply} from 'effectjs';
 import * as Page from './Page';
 import * as Game from './game';
 import * as Guess from './guess';
+import * as CreateWord from './createWord';
 import {perform, range} from '../utils';
 
 const uuid = require('uuid');
@@ -14,6 +15,7 @@ enum Actions {
     Guess,
     CreateGame,
     Delegate,
+    CreateWord,
 }
 
 interface StateAttrs {
@@ -67,9 +69,24 @@ export const update = (state : state, action : action) : result => {
                 dataSource: state.dataSource.cloneWithRows(nextGames.toArray()),
             });
             return Result(nextState);
-        }
-        throw new Error('Invalid reply from Guess to main');
-    } else if (type === Actions.CreateGame){
+            }
+            throw new Error('Invalid reply from Guess to main');
+        } else if (type === Actions.CreateWord) {
+        const replyAction : Action<CreateWord.Replies, any> = data;
+        const {type:reply} = replyAction;
+        if (reply === CreateWord.Replies.GameChanged){
+            const {data:newGameState} = replyAction;
+            // find game to update in games list
+            const index = state.games.findKey((game) => game.id == newGameState.id);
+            const nextGames = state.games.set(index, newGameState);
+            const nextState = state.merge({
+                games: nextGames,
+                dataSource: state.dataSource.cloneWithRows(nextGames.toArray()),
+            });
+            return Result(nextState);
+            }
+            throw new Error('Invalid reply from CreateWord to main');    
+        } else if (type === Actions.CreateGame){
         const id = uuid.v4(); 
         const {state: newGame, effect: gameEffect} = Game.init({id, language: 'eng'});
         const newGameStates = state.games.push(newGame);
@@ -95,9 +112,10 @@ import {
 
 const renderRow = (navigate: (action : Page.action) => void) => (game: Game.state) => {
     const guessReply : Reply<action> = (reply : Guess.replies) => Effect.call(() => Action(Page.reply, Action(Page.page.Main, Action(Actions.Guess, reply))));
+    const createReply : Reply<action> = (reply : CreateWord.replies) => Effect(Action(Page.reply, Action(Page.page.Main, Action(Actions.CreateWord, reply))));
     
     return (
-        <TouchableHighlight onPress={() => navigate(Page.push(Page.page.Guess, game, guessReply))}>
+        <TouchableHighlight onPress={() => navigate(Page.push(Page.page.CreateWord, game, createReply))}>
             <View style={styles.row}>
                 {Game.view(game)}
             </View>

@@ -9,7 +9,7 @@ import {View, Text, StyleSheet} from 'react-native';
 
 const defaultNumOfRounds = 3;
 
-const enum Actions{
+export const enum Actions{
     MyWord,
     TheirWord,
 }
@@ -23,12 +23,16 @@ const enum GameSteps{
 type Guessed = Map<string, boolean>;
 
 interface RoundAttrs {
+    myWord? : Word.state;
+    theirWord? : Word.state;
     triesLeft?: number;
     guessedLetters?: Map <string, boolean>;
     won?: boolean;
 }
 
 const RoundState = Record<RoundAttrs>({
+    myWord: undefined,
+    theirWord: undefined,
     triesLeft: 8,
     guessedLetters: undefined,
     won: undefined,
@@ -37,8 +41,6 @@ const RoundState = Record<RoundAttrs>({
 type roundState = RoundAttrs & Record.TypedMap<RoundAttrs>;
 
 interface StateAttrs {
-    myWord? : Word.state;
-    theirWord? : Word.state;
     id? : number;
     name? : string;
     step?: GameSteps;
@@ -48,22 +50,29 @@ interface StateAttrs {
 }
 
 const State = Record<StateAttrs>({
-    myWord: undefined,
-    theirWord: undefined,
     name: undefined,
-    step: GameSteps.guessWord,
+    step: GameSteps.createWord,
     round: 0,
     id: undefined,
     language: undefined,
     roundStates: undefined,
 });
 
-const initRoundStates = (numOfRounds : number, language : Language) : List< RoundAttrs> => {
-    return List(range(0, numOfRounds).map( (roundIndex) =>
+const initRoundStates = (numOfRounds : number, language : Language) : {roundStates: List< RoundAttrs>, roundEffects : Effect<action>} => {
+    const {state: theirWord, effect: theirEffect} = Word.init(true);
+    const {state: myWord, effect: myEffect} = Word.init(false);
+    const roundEffects = Effect.all([
+        theirEffect.map((action) => theirAction(action)),
+        myEffect.map((action) => myAction(action)),
+    ]);    
+    const roundStates =  List(range(0, numOfRounds).map( (roundIndex) =>
         RoundState({
             guessedLetters: initGuessedTable(language),
+            theirWord,
+            myWord,
         })
     ));
+    return {roundStates, roundEffects};
 }
 
 const initGuessedTable = (language : Language) => {
@@ -74,10 +83,10 @@ const initGuessedTable = (language : Language) => {
 }
 
 export type state = Record.IRecord<StateAttrs>;
-export type action = Action<Actions, Word.action>;
+export type action = Action<Actions, Word.action> | Action<Actions, string>;
 export type result = Result<state, action>;
 export const theirWord = (state : state) : string => {
-    return state.theirWord.word;
+    return state.roundStates.get(state.round).theirWord.word;
 }
 
 const myAction = (action : Word.action) : action => Action(Actions.MyWord, action);
@@ -88,48 +97,46 @@ type options = {
     language : Language;
 }
 
+
 export const init = ({id, language} : options) : result => {
-    const {state: myWord, effect: myEffect} = Word.init();
-    const {state: theirWord, effect: theirEffect} = Word.init();
-    const roundStates = initRoundStates(defaultNumOfRounds, language);
-    console.log(roundStates);
+    const {roundStates, roundEffects} = initRoundStates(defaultNumOfRounds, language);
     const state = State({
-        myWord,
-        theirWord,
-        name: `Game`,
+        name: `Game round  1`,
         id: id,
         language,
         roundStates,
     });
-    console.log('GAME STATE: ', state);
-    const effect = Effect.all([
-        myEffect.map((action) => myAction(action)),
-        theirEffect.map((action) => theirAction(action)),
-    ]);
-    return Result(state, effect);
+    
+    return Result(state, roundEffects);
 };
 
 export const update = (state : state, action : action) : result  => {
     const {type, data} = action;
     if(type === Actions.MyWord) {
-        const {state: myWord, effect: myEffect} = Word.update(state.myWord, data);
-        const nextState = state.merge({myWord});
+        const word = data as string;
+        const roundState = state.roundStates.get(state.round);
+        const {state: myWord, effect: myEffect} = Word.update(roundState.myWord, Action(Word.Actions.Word, word.toUpperCase()));
+        const nextState = state.mergeIn(['roundStates', state.round],{myWord});
         const effect = myEffect.map((action: Word.action) : action => myAction(action));
         return Result(nextState, effect);
     } else if(type === Actions.TheirWord) {
-        const {state: theirWord, effect: theirEffect} = Word.update(state.theirWord, data);
-        const nextState = state.merge({theirWord});
+        const wordAction = data as Action<Word.Actions, string>;
+        const roundState = state.roundStates.get(state.round);
+        const {state: theirWord, effect: theirEffect} = Word.update(roundState.theirWord, wordAction);
+        const nextState = state.mergeIn(['roundStates', state.round],{theirWord});
         const effect = theirEffect.map((action: Word.action) : action => theirAction(action));
         return Result(nextState, effect);
     }
 };
 
 export const view = (state : state, next? : any) => {
-    const {myWord, theirWord, name} = state;
+    const roundState = state.roundStates.get(state.round);
+    const {name} = state;
+    const {myWord, theirWord} = roundState;
     return (
         <View style={styles.container as any}>
             <Text style={styles.textStyle}>{name}</Text>
-            <Text style={styles.textStyle}>{myWord.word}</Text>
+            <Text style={styles.textStyle}>{ myWord ? myWord.word : ""}</Text>
         </View>
     );
 };

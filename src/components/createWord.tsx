@@ -2,6 +2,8 @@ import * as React from 'react';
 import {Record, Map, List, is as immutableEqual} from 'immutable';
 import {Action, Effect, Result, Component, Reply} from 'effectjs';
 import * as Page from './Page';
+import * as Keyboard from './keyboard';
+import * as Game from './game';
 
 const uuid = require('uuid');
 
@@ -9,15 +11,31 @@ const uuid = require('uuid');
 enum Actions {
     stateChanged,
     delegate,
+    selectLetter,
+    keyboardAction,
+    Done,
 }
 
+export const enum Replies {
+    GameChanged,
+}
 interface StateAttrs {
     reply? : Reply<any>;
     components?: Map<string, Component<any,any,any>>;
     states?: Map<string, any>;
     mappers?: Map<string, mapper>;
+    game?: Game.state;
+    myWord?: string;
+    keyboardState?: Keyboard.state;
 }
 const State = Record<StateAttrs>({
+    keyboardState: undefined,
+    myWord: undefined,
+    game: undefined,
+    components: undefined,
+    states: undefined, 
+    mappers: undefined,
+    reply: undefined,
 });
 
 export type state = Record.IRecord<StateAttrs>;
@@ -26,6 +44,7 @@ export type result = Result<state, action>;
 
 const delegateTo = (id : string) => (action : any) : action => 
     Action(Actions.delegate, {id, action});
+
 
 // ASSUMPTION : Both arrays are same length
 const zip = <X,Y>(xs : X[], ys : Y[]) : [X, Y][] => {
@@ -81,22 +100,29 @@ const handleDelagation = (state : state, {id, action}) => {
     return pair;
 }
 
-type SubState = state  ;
+type SubState = Keyboard.state ;
 
-export const init = (reply? : Reply<any>) : result => {
+export type replies = Action<Replies, any>;
 
+export const init = (game : Game.state, reply? : Reply<any>) : result => {
+    console.log("INITIAL GAME STATE", game);
     // Init subcomponents and map the effects
     const componentList : config<SubState, any>[] = [
-   //     {component: Component1.component},
-     //   {component: Component2.component}
     ];
+    const {state: keyboardState, effect: keyboardEffect} = Keyboard.init();
     const {components, states, effects, mappers} = subComponentsInit(componentList);
-    const effect = Effect.all(effects);
+
+    const effect = Effect.all([
+        Effect.all(effects), 
+        keyboardEffect.map((action : Keyboard.action) => Action(Actions.keyboardAction, action))
+        ]);
     const state = State({
+        game,
         reply,
         components,
         states,
         mappers,
+        keyboardState,
     });
     return Result(state, effect);
 };
@@ -110,6 +136,30 @@ export const update = (state : state, action : action) : result => {
         const [states, effect] = handleDelagation(state, data);
         const nextState = state.merge({states});
         return Result(nextState, effect);
+    } else if (type === Actions.selectLetter){
+        const {myWord: oldWord} = state;
+        const {data: char} = data as Keyboard.pressAction;
+        const myWord = oldWord ? oldWord + char : char;
+        const nextState = state.merge({myWord});
+        return Result(nextState); 
+    } else if (type === Actions.Done){
+        const {game, myWord, reply} = state;
+
+        // Test if vailid word
+        // Set new word
+        console.log("GAMESTET: ", game, state);
+        const {state:gameState, effect:gameEffect}  = Game.update(game, Action(Game.Actions.MyWord, myWord));
+        const nextState = state.merge({game: gameState});
+        const replyEffect = reply(Action(Replies.GameChanged, gameState));
+        // TODO: How to handle gameEffect?
+        return Result(nextState, replyEffect);
+    } else if (type === Actions.keyboardAction) {
+        const {keyboardState: oldKeyboardState}  = state;
+        const {state: keyboardState, effect} = Keyboard.update(oldKeyboardState, data);
+        const nextState = state.merge({keyboardState});
+        // TODO: Do not know if this will be correct mapping of effects from keyboard update
+        const effects = Action(Actions.keyboardAction, effect);
+        return Result(nextState, effects);
     }
     // TODO: change component to component name
     throw new Error(`Invalid action type in component: ${type}`);
@@ -118,15 +168,29 @@ export const update = (state : state, action : action) : result => {
 import {
     View,
     Text,
-    StyleSheet
+    StyleSheet,
+    TouchableHighlight,
 } from 'react-native';
 
 
 
 export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
+    const {keyboardState} = state;
+    const keyboard = Keyboard.view(keyboardState, (act : Keyboard.action) : void => next(Action(Actions.selectLetter, act)));
+    console.log('THE ACTUAL KEYBOARD', keyboard);
+    const {myWord} = state;
     return (
         <View style={styles.container}>
-            <Text> Main page </Text>
+            <TouchableHighlight style={styles.backButton} onPress={() => {next(Action(Actions.Done)); navigate(Page.pop()) }} > 
+                <View>
+                    <Text> Done! </Text>
+                </View>
+            </TouchableHighlight>
+            <View>
+            <Text> {myWord} </Text>
+            </View>
+            <View>{keyboard}</View>
+
         </View>
    );
 };
@@ -139,7 +203,10 @@ const styles = StyleSheet.create({
         marginTop: 50,
         flex: 1,
     },
-    row: {
+    backButton: {
+        marginTop: 50,
+        backgroundColor: '#00FF00',
+    },    row: {
         height: 80,
         borderTopWidth: 1,
         borderColor: 'rgb(239,239,239)',

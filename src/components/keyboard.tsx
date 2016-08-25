@@ -119,7 +119,7 @@ export const update = (state: state, action: action) => {
     } else if (type === Actions.Press){
         return Result(state);
     }
-    throw new Error('Ivalid action type keyboard');
+    throw new Error(`Invalid action type in keyboard: ${type}`);
 }
 
 export const view = (state: state, next?: (action: action) => void) => {
@@ -148,8 +148,8 @@ const renderTiles = (state: state, next: (action: action) => void) => {
     return chars.map<any>((char: string, index: number) => {
         return (
             <TouchableHighlight key={char.charCodeAt(0) } onPress={() => next(Action(Actions.Press, char)) }>
-                <View  style={[styles.tile, getKeyPosition(index, chars.length), { backgroundColor: keyMap.get(char).color }]}>
-                    <Text style={styles.letter}>{char}</Text>
+                <View style={[styles.tile, getKeyPosition(index, chars.length), { backgroundColor: keyMap.get(char).color }]} >
+                    <Text style={styles.letter} > {char} </Text>
                 </View>
             </TouchableHighlight>
 
@@ -179,3 +179,4 @@ var styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
 });
+export const component = {init,update,view} as Component<state, action, any>;
