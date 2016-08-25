@@ -5,6 +5,7 @@ import * as Page from './Page';
 import * as Game from './game';
 import * as Guess from './guess';
 import * as CreateWord from './createWord';
+import * as LetterSelector from './letterSelector';
 import {perform, range} from '../utils';
 
 const uuid = require('uuid');
@@ -16,6 +17,8 @@ enum Actions {
     CreateGame,
     Delegate,
     CreateWord,
+    GameChanged,
+    SelectLetters,
 }
 
 interface StateAttrs {
@@ -33,6 +36,17 @@ export type result = Result<state, action>;
 
 const gameAction = (id : string) => (action : Game.action) : action =>
     Action(Actions.Game, {id, action});
+
+const updateGame = (state:state, newGameState: any) => {
+    // find game to update in games list
+    const index = state.games.findKey((game) => game.id == newGameState.id);
+    const nextGames = state.games.set(index, newGameState);
+    const nextState = state.merge({
+        games: nextGames,
+        dataSource: state.dataSource.cloneWithRows(nextGames.toArray()),
+    });
+    return Result(nextState);
+};
 
 export const init = () : result => {
     const ds = new ListView.DataSource({rowHasChanged: (r1, r2) => !immutableEqual(r1, r2)});
@@ -56,34 +70,30 @@ export const update = (state : state, action : action) : result => {
         });
         const effect = gameEffect.map(gameAction(id));
         return Result(nextState, effect);
+
+    } else if (type === Actions.SelectLetters) {
+        const replyAction: Action<LetterSelector.Replies, any> = data;
+        const {type: reply} = replyAction;
+        if (reply === LetterSelector.Replies.GameChanged) {
+            const {data: newGameState} = replyAction;
+            return updateGame(state, newGameState);
+        }
+        throw new Error('Invalid reply from Guess to main');
     } else if (type === Actions.Guess) {
         const replyAction : Action<Guess.Replies, any> = data;
         const {type:reply} = replyAction;
-        if (reply === Guess.Replies.GameChanged){
-            const {data:newGameState} = replyAction;
-            // find game to update in games list
-            const index = state.games.findKey((game) => game.id == newGameState.id);
-            const nextGames = state.games.set(index, newGameState);
-            const nextState = state.merge({
-                games: nextGames,
-                dataSource: state.dataSource.cloneWithRows(nextGames.toArray()),
-            });
-            return Result(nextState);
-            }
-            throw new Error('Invalid reply from Guess to main');
-        } else if (type === Actions.CreateWord) {
+        if (reply === Guess.Replies.GameChanged) {
+            const {data: newGameState} = replyAction;
+            return updateGame(state, newGameState);
+        }
+        throw new Error('Invalid reply from Guess to main');
+    } else if (type === Actions.CreateWord) {
         const replyAction : Action<CreateWord.Replies, any> = data;
         const {type:reply} = replyAction;
         if (reply === CreateWord.Replies.GameChanged){
             const {data:newGameState} = replyAction;
             // find game to update in games list
-            const index = state.games.findKey((game) => game.id == newGameState.id);
-            const nextGames = state.games.set(index, newGameState);
-            const nextState = state.merge({
-                games: nextGames,
-                dataSource: state.dataSource.cloneWithRows(nextGames.toArray()),
-            });
-            return Result(nextState);
+            return updateGame(state, newGameState);
             }
             throw new Error('Invalid reply from CreateWord to main');    
         } else if (type === Actions.CreateGame){
@@ -111,18 +121,21 @@ import {
 } from 'react-native';
 
 const pushGamePage = (game:Game.state) => {
-    
     switch (game.step) {
+        case Game.GameSteps.letterSelector:
+            const selectLettersReply: Reply<action> = (reply: LetterSelector.replies) => Effect.call(() => 
+                Action(Page.reply, Action(Page.page.Main, Action(Actions.SelectLetters, reply))));
+            return Page.push(Page.page.LetterSelector, game, selectLettersReply);
         case Game.GameSteps.guessWord:
-            const guessReply: Reply<action> = (reply: Guess.replies) => Effect.call(() => Action(Page.reply, Action(Page.page.Main, Action(Actions.Guess, reply))));
+            const guessReply: Reply<action> = (reply: Guess.replies) => Effect.call(() => 
+                Action(Page.reply, Action(Page.page.Main, Action(Actions.Guess, reply))));
             return Page.push(Page.page.Guess, game, guessReply);
         case Game.GameSteps.createWord:
-            const createReply: Reply<action> = (reply: CreateWord.replies) => Effect(Action(Page.reply, Action(Page.page.Main, Action(Actions.CreateWord, reply))));
+            const createReply: Reply<action> = (reply: CreateWord.replies) => 
+                Effect(Action(Page.reply, Action(Page.page.Main, Action(Actions.CreateWord, reply))));
             return Page.push( Page.page.CreateWord, game, createReply);
         //case Game.GameSteps.complete: return Page.push( Page.page.Guess, game, createReply);
     }
-
-    
 }
 
 const renderRow = (navigate: (action : Page.action) => void) => (game: Game.state) => {

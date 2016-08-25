@@ -13,7 +13,8 @@ export const enum StatusCode {
 export const enum page {
     Main,
     Guess,
-    CreateWord
+    CreateWord,
+    LetterSelector
 }
 
 export type pushAction = Action<Actions, Action<page, any>>;

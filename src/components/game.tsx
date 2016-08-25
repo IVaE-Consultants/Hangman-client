@@ -16,6 +16,7 @@ export const enum Actions{
 }
 
 export const enum GameSteps{
+    letterSelector,
     createWord,
     guessWord,
     complete,
@@ -52,7 +53,7 @@ interface StateAttrs {
 
 const State = Record<StateAttrs>({
     name: undefined,
-    step: GameSteps.createWord,
+    step: GameSteps.letterSelector,
     round: 0,
     id: undefined,
     language: undefined,
@@ -130,11 +131,12 @@ export const update = (state : state, action : action) : result  => {
     } else if (type === Actions.NextGameStep) {
         const step = ((step: GameSteps): GameSteps => {
             switch (step) {
+                case GameSteps.letterSelector: return GameSteps.createWord;
                 case GameSteps.createWord: return GameSteps.guessWord;
                 case GameSteps.guessWord: return GameSteps.complete;
-                case GameSteps.complete: return GameSteps.createWord;
-                default: 
-                    throw new Error("Invalid step in game")
+                //case GameSteps.complete: return GameSteps.createWord;
+                //default: 
+                //    throw new Error("Invalid step in game")
             }
         })(state.step);
         const newState = state.merge({step})

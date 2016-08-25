@@ -2,6 +2,7 @@ import * as React from 'react';
 import * as guess from './guess';
 import * as main from './main';
 import * as createWord from './createWord';
+import * as letterSelector from './letterSelector';
 import {Record, Map, Stack, OrderedMap} from 'immutable';
 
 
@@ -33,6 +34,8 @@ const getComponent = (page : page) : Component<any, any, any> => {
         return guess;
     } else if(page === Page.page.CreateWord) {
         return createWord;
+    } else if(page === Page.page.LetterSelector) {
+        return letterSelector;
     }
 }
 
