@@ -66,7 +66,7 @@ const initRoundStates = (numOfRounds : number, language : Language) : {roundStat
     const roundEffects = Effect.all([
         theirEffect.map((action) => theirAction(action)),
         myEffect.map((action) => myAction(action)),
-    ]);    
+    ]);
     const roundStates =  List(range(0, numOfRounds).map( (roundIndex) =>
         RoundState({
             guessedLetters: initGuessedTable(language),
@@ -108,7 +108,7 @@ export const init = ({id, language} : options) : result => {
         language,
         roundStates,
     });
-    
+
     return Result(state, roundEffects);
 };
 
@@ -135,7 +135,7 @@ export const update = (state : state, action : action) : result  => {
                 case GameSteps.createWord: return GameSteps.guessWord;
                 case GameSteps.guessWord: return GameSteps.complete;
                 //case GameSteps.complete: return GameSteps.createWord;
-                //default: 
+                //default:
                 //    throw new Error("Invalid step in game")
             }
         })(state.step);

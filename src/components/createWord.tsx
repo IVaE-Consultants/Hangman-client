@@ -26,14 +26,14 @@ interface StateAttrs {
     mappers?: Map<string, mapper>;
     game?: Game.state;
     myWord?: string;
-    keyboardState?: Keyboard.state;
+    keys?: List<Keyboard.Key>;
 }
 const State = Record<StateAttrs>({
-    keyboardState: undefined,
+    keys: undefined,
     myWord: undefined,
     game: undefined,
     components: undefined,
-    states: undefined, 
+    states: undefined,
     mappers: undefined,
     reply: undefined,
 });
@@ -42,7 +42,7 @@ export type state = Record.IRecord<StateAttrs>;
 export type action = Action<Actions, any>;
 export type result = Result<state, action>;
 
-const delegateTo = (id : string) => (action : any) : action => 
+const delegateTo = (id : string) => (action : any) : action =>
     Action(Actions.delegate, {id, action});
 
 
@@ -81,15 +81,15 @@ const subComponentsInit = <S, A>(componentList : config<S,A>[]) => {
         return effect.map(mapper(id));
     });
     return {
-        states, 
-        components, 
+        states,
+        components,
         effects,
         mappers,
     };
 }
 
 const handleDelagation = (state : state, {id, action}) => {
-    const {components, states, mappers} = state; 
+    const {components, states, mappers} = state;
     const component = components.get(id);
     const componentState = states.get(id);
     const result = component.update(componentState, action);
@@ -100,31 +100,21 @@ const handleDelagation = (state : state, {id, action}) => {
     return pair;
 }
 
-type SubState = Keyboard.state ;
-
 export type replies = Action<Replies, any>;
 
 export const init = (game : Game.state, reply? : Reply<any>) : result => {
-    console.log("INITIAL GAME STATE", game);
-    // Init subcomponents and map the effects
-    const componentList : config<SubState, any>[] = [
-    ];
-    const {state: keyboardState, effect: keyboardEffect} = Keyboard.init();
-    const {components, states, effects, mappers} = subComponentsInit(componentList);
+    const alphabet = [...'FGHASDTUUZX']
+    const keys = Keyboard.createKeys((text : string, id : number) => {
+        return Keyboard.Key({text, id});
+    })(alphabet);
 
-    const effect = Effect.all([
-        Effect.all(effects), 
-        keyboardEffect.map((action : Keyboard.action) => Action(Actions.keyboardAction, action))
-        ]);
     const state = State({
+        myWord: '',
         game,
         reply,
-        components,
-        states,
-        mappers,
-        keyboardState,
+        keys,
     });
-    return Result(state, effect);
+    return Result(state);
 };
 
 export const update = (state : state, action : action) : result => {
@@ -132,41 +122,26 @@ export const update = (state : state, action : action) : result => {
     if (type === Actions.stateChanged){
         // do something and return your new state and effects
         return Result(state, Effect.none);
-    } else if (type === Actions.delegate) {
-        const [states, effect] = handleDelagation(state, data);
-        const nextState = state.merge({states});
-        return Result(nextState, effect);
     } else if (type === Actions.selectLetter){
-        const {myWord: oldWord} = state;
-        const {data: char} = data as Keyboard.pressAction;
-        const myWord = oldWord ? oldWord + char : char;
-        const nextState = state.merge({myWord});
+        const {myWord: oldWord, keys: oldKeys} = state;
+        const {data: key} = data as Keyboard.pressAction;
+        const myWord = oldWord + key.text;
+        const keys = Keyboard.disableKey(key, oldKeys);
+        const nextState = state.merge({myWord, keys});
         return Result(nextState);
     } else if (type === Actions.Done){
         const {game, myWord, reply} = state;
         if (myWord) {
-            // Test if vailid word
-            // Set new word
-
             const {state: gameState2, effect: gameEffect2} = Game.update(game, Action(Game.Actions.MyWord, myWord));
             const {state: gameState, effect: gameEffect} = Game.update(gameState2, Action(Game.Actions.NextGameStep, undefined));
 
             const nextState = state.merge({ game: gameState });
             const replyEffect = reply(Action(Replies.GameChanged, gameState));
-            // TODO: How to handle gameEffect?
             return Result(nextState, replyEffect);
         } else {
             return Result(state);
         }
-    } else if (type === Actions.keyboardAction) {
-        const {keyboardState: oldKeyboardState} = state;
-        const {state: keyboardState, effect} = Keyboard.update(oldKeyboardState, data);
-        const nextState = state.merge({ keyboardState });
-        // TODO: Do not know if this will be correct mapping of effects from keyboard update
-        const effects = Action(Actions.keyboardAction, effect);
-        return Result(nextState, effects);
     }
-    // TODO: change component to component name
     throw new Error(`Invalid action type in component: ${type}`);
 };
 
@@ -177,32 +152,10 @@ import {
     TouchableHighlight,
 } from 'react-native';
 
-
-
-export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
-    const {keyboardState} = state;
-    const keyboard = Keyboard.view(keyboardState, (act : Keyboard.action) : void => next(Action(Actions.selectLetter, act)));
-    console.log('THE ACTUAL KEYBOARD', keyboard);
-    const {myWord} = state;
-    return (
-        <View style={styles.container}>
-            <TouchableHighlight style={styles.backButton} onPress={() => {next(Action(Actions.Done)); navigate(Page.pop()) }} > 
-                <View>
-                    <Text> Done! </Text>
-                </View>
-            </TouchableHighlight>
-            <View>
-            <Text> {myWord} </Text>
-            </View>
-            <View>{keyboard}</View>
-
-        </View>
-   );
-};
-
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        alignItems: 'stretch',
     },
     listView: {
         marginTop: 50,
@@ -211,12 +164,38 @@ const styles = StyleSheet.create({
     backButton: {
         marginTop: 50,
         backgroundColor: '#00FF00',
-    },    row: {
+    },
+    row: {
         height: 80,
         borderTopWidth: 1,
         borderColor: 'rgb(239,239,239)',
     },
-}) 
+    word: {
+        flex: 1,
+    },
+    keyboard: {
+        alignSelf: 'flex-end',
+    },
+});
+
+export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
+    const {keys} = state;
+    const keyboard = Keyboard.view(keys, (act : Keyboard.action) : void => next(Action(Actions.selectLetter, act)));
+    const {myWord} = state;
+    return (
+        <View style={styles.container as any}>
+            <TouchableHighlight style={styles.backButton} onPress={() => {next(Action(Actions.Done)); navigate(Page.pop()) }} >
+                <View>
+                    <Text> Done! </Text>
+                </View>
+            </TouchableHighlight>
+            <View style={styles.word}>
+                <Text>{myWord}</Text>
+            </View>
+            <View style={styles.keyboard as any}>{keyboard}</View>
+        </View>
+   );
+};
 
 
 export const component = {init, update, view} as Component<state, action, any>;

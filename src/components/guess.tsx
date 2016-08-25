@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {Action, Effect, Result, Component, Reply} from 'effectjs';
 import * as Page from './Page';
-import {Record, Map} from 'immutable';
+import {Record, Map, List} from 'immutable';
 import * as Game from './game';
 import * as Keyboard from './keyboard';
 
@@ -23,7 +23,7 @@ interface StateAttrs {
     revealed?: string[];
     firstKnown?: number;
     lastKnown?: number;
-    keyboardState?: Keyboard.state;
+    keys?: List<Keyboard.Key>;
     reply? : Reply<any>;
 }
 const State = Record<StateAttrs>({
@@ -32,7 +32,7 @@ const State = Record<StateAttrs>({
     revealed: undefined,
     firstKnown: undefined,
     lastKnown: undefined,
-    keyboardState: undefined,
+    keys: undefined,
     reply: undefined,
 });
 
@@ -48,15 +48,17 @@ export type replies = Action<Replies, any>;
 
 // type as Game component
 export const init = (game : Game.state, reply : Reply<any>) : result => {
-    const {state: keyboardState, effect} = Keyboard.init();
-    // TODO: map effects
     const word = game.roundStates.get(game.round).theirWord.word;
+    const alphabet = Keyboard.getAlphabet();
+    const keys = Keyboard.createKeys((text : string) => {
+        return Keyboard.Key({text});
+    })(alphabet);
     const nextState = State({
         game,
         reply,
         unknown: word.length,
         revealed: [...Array(word.length+1).join('?')],
-        keyboardState,
+        keys,
     });
     return Result(nextState, Effect.none);
 };
@@ -66,12 +68,12 @@ export const update = (state : state, action : action) : result => {
     const {game} = state;
     if (type === Actions.GuessLetter) {
         // data is Action(Keyboard.Actions.Disable, char)
-        const {data: char} = data as Keyboard.pressAction;
+        const {data: key} = data as Keyboard.pressAction;
         // update keyboard
         //const {state: nextKeyboardState, effect: keyboardEffects} = Keyboard.update(state.keyboardState, data);
 
         // letter that was guessed
-        let letter = char.toUpperCase();
+        let letter = key.text.toUpperCase();
         const {round, roundStates} = game;
         let {revealed, unknown, firstKnown, lastKnown} = state;
         const word = game.roundStates.get(game.round).theirWord.word;
@@ -94,9 +96,6 @@ export const update = (state : state, action : action) : result => {
             lastKnown = positions[0];
         }
         const color = positions.length > 0 ? '#00ff00' : '#ff0000';
-        const {state: disabledState, effect: tmpEffect} = Keyboard.update(state.keyboardState, Action(Keyboard.Actions.Disable,char))
-        const {state: nextKeyboardState, effect: keyboardEffects} =
-            Keyboard.update(disabledState, Action(Keyboard.Actions.SetBackgroundColor,{key:char,color:color}))
 
         let max = Math.max.apply(null, positions);
         let min = Math.min.apply(null, positions);
@@ -133,16 +132,16 @@ export const update = (state : state, action : action) : result => {
         //
         // return a new state
         const {reply} = state;
-        const newState = state.merge({keyboardState:nextKeyboardState, game: newGameState, revealed,  unknown, firstKnown, lastKnown});
+        const newState = state.merge({game: newGameState, revealed,  unknown, firstKnown, lastKnown});
         const effect = reply(Action(Replies.GameChanged, newGameState));
         return Result(newState, effect);
     }
 };
 
 export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
-    const {game, keyboardState} = state;
+    const {game, keys} = state;
     const {round} = game;
-    const testboard = Keyboard.view(keyboardState, (act : Keyboard.action) : void => next(Action(Actions.GuessLetter, act)));
+    const testboard = Keyboard.view(keys, (act : Keyboard.action) : void => next(Action(Actions.GuessLetter, act)));
     const {triesLeft} = game.roundStates.get(round);
     let {revealed, unknown, firstKnown, lastKnown} = state;
     const word = game.roundStates.get(game.round).theirWord.word;
