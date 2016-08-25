@@ -148,7 +148,9 @@ export const update = (state : state, action : action) : result => {
         // Test if vailid word
         // Set new word
         console.log("GAMESTET: ", game, state);
-        const {state:gameState, effect:gameEffect}  = Game.update(game, Action(Game.Actions.MyWord, myWord));
+        const {state:gameState2, effect:gameEffect2}  = Game.update(game, Action(Game.Actions.MyWord, myWord));
+        const {state:gameState, effect:gameEffect}  = Game.update(gameState2, Action(Game.Actions.NextGameStep, undefined));
+        
         const nextState = state.merge({game: gameState});
         const replyEffect = reply(Action(Replies.GameChanged, gameState));
         // TODO: How to handle gameEffect?

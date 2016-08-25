@@ -12,9 +12,10 @@ const defaultNumOfRounds = 3;
 export const enum Actions{
     MyWord,
     TheirWord,
+    NextGameStep,
 }
 
-const enum GameSteps{
+export const enum GameSteps{
     createWord,
     guessWord,
     complete,
@@ -126,6 +127,18 @@ export const update = (state : state, action : action) : result  => {
         const nextState = state.mergeIn(['roundStates', state.round],{theirWord});
         const effect = theirEffect.map((action: Word.action) : action => theirAction(action));
         return Result(nextState, effect);
+    } else if (type === Actions.NextGameStep) {
+        const step = ((step: GameSteps): GameSteps => {
+            switch (step) {
+                case GameSteps.createWord: return GameSteps.guessWord;
+                case GameSteps.guessWord: return GameSteps.complete;
+                case GameSteps.complete: return GameSteps.createWord;
+                default: 
+                    throw new Error("Invalid step in game")
+            }
+        })(state.step);
+        const newState = state.merge({step})
+        return Result(newState);
     }
 };
 

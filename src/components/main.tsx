@@ -110,12 +110,25 @@ import {
     StyleSheet
 } from 'react-native';
 
+const pushGamePage = (game:Game.state) => {
+    
+    switch (game.step) {
+        case Game.GameSteps.guessWord:
+            const guessReply: Reply<action> = (reply: Guess.replies) => Effect.call(() => Action(Page.reply, Action(Page.page.Main, Action(Actions.Guess, reply))));
+            return Page.push(Page.page.Guess, game, guessReply);
+        case Game.GameSteps.createWord:
+            const createReply: Reply<action> = (reply: CreateWord.replies) => Effect(Action(Page.reply, Action(Page.page.Main, Action(Actions.CreateWord, reply))));
+            return Page.push( Page.page.CreateWord, game, createReply);
+        //case Game.GameSteps.complete: return Page.push( Page.page.Guess, game, createReply);
+    }
+
+    
+}
+
 const renderRow = (navigate: (action : Page.action) => void) => (game: Game.state) => {
-    const guessReply : Reply<action> = (reply : Guess.replies) => Effect.call(() => Action(Page.reply, Action(Page.page.Main, Action(Actions.Guess, reply))));
-    const createReply : Reply<action> = (reply : CreateWord.replies) => Effect(Action(Page.reply, Action(Page.page.Main, Action(Actions.CreateWord, reply))));
     
     return (
-        <TouchableHighlight onPress={() => navigate(Page.push(Page.page.CreateWord, game, createReply))}>
+        <TouchableHighlight onPress={() => navigate(pushGamePage(game))}>
             <View style={styles.row}>
                 {Game.view(game)}
             </View>
