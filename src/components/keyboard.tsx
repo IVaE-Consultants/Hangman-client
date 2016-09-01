@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {Action, Effect, Result, Component} from 'effectjs';
-import {Record, Map} from 'immutable';
+import {Record, List} from 'immutable';
 
 import {
     StyleSheet,
@@ -12,15 +12,13 @@ import {
 export const enum Actions {
     Press,
     Disable,
-    SetBackgroundColor,
 }
 
 const defaultActiveColor = '#BEE1D2';
 const defaultInactiveColor = '#FF0000';
 const defaultLanguage = 'swe';
-const defaultNumOfRows = 4;
 
-const getAlphabet = (language: string): string[] => {
+export const getAlphabet = (language : string = defaultLanguage) : string[] => {
     if (language == 'swe') {
         return [...'ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖ'];
     } else if (language == 'eng') {
@@ -29,54 +27,36 @@ const getAlphabet = (language: string): string[] => {
     throw new Error('Not an available language: ' + language);
 }
 
-type keymap = Map<string, any>;
-type key = Record.IRecord<KeyAttrs>;
+export const disableKey = (toDisable : Key, keys : List<Key>) : List<Key> => {
+    const index = keys.findIndex((key) => key.id === toDisable.id);
+    const disabled = toDisable.merge({enabled: false});
+    return keys.set(index, disabled);
+};
 
-const defaultKeyMap = (): keymap => {
-    const alphabet = getAlphabet(defaultLanguage);
-    const chars = alphabet;
-    const keyMap = chars.reduce((acc: keymap, letter: string) => {
-        const key = Record<KeyAttrs>({ letter, active: true, color: defaultActiveColor })();
-        return acc.set(letter, key);
-    }, Map<string, any>());
-    return keyMap;
-}
+export type Key = Record.IRecord<KeyAttrs>;
+export const Key = (attributes : KeyAttrs) => {
+    const defaults = {
+        text: '…',
+        enabled: true,
+        id: 0,
+    };
+    return Record<KeyAttrs>(defaults)(attributes);
+};
 
 interface KeyAttrs {
-    active?: boolean;
-    letter?: string;
-    color?: string;
+    id? : number;
+    text? : string;
+    enabled? : boolean;
 }
 
+export const createKeys = (f : (text : string, index? : number) => Key) =>
+    (alphabet : string[]) : List<Key> =>
+        List(alphabet.map(f));
 
-const Key = (letter: string, active: boolean = true) => {
-    let color = active ? defaultActiveColor : defaultInactiveColor;
-    return Record<KeyAttrs>({ letter, active, color });
-}
-
-interface StateAttrs {
-    keyMap?: Map<string, key>;
-    activeColor?: string;
-    inactiveColor?: string;
-    language?: string;
-    numOfRows?: number;
-    rowStates?: any[];
-}
-const State = Record<StateAttrs>({
-    keyMap: undefined,
-    activeColor: defaultActiveColor,
-    inactiveColor: defaultInactiveColor,
-    language: defaultLanguage,
-    numOfRows: defaultNumOfRows,
-    rowStates: undefined,
-});
-
-export type state = Record.IRecord<StateAttrs>;
 export type disableAction = Action<Actions, string>;
-export type pressAction = Action<Actions, string>;
+export type pressAction = Action<Actions, Key>;
 export type setBackgroundColorAction = Action<Actions, { key : string, color : string } >;
 export type action = pressAction | disableAction | setBackgroundColorAction;
-export type result = Result<state, Effect<action>>;
 
 const {width, height} = require('Dimensions').get('window');
 const KEYBOARDROWS = 5; // Number of rows to divide letters in
@@ -84,92 +64,26 @@ const CELL_SIZE = Math.floor(width * .13); // 20% of the screen width
 const CELL_PADDING = Math.floor(CELL_SIZE * .05); // 5% of the cell size
 const BORDER_RADIUS = CELL_PADDING * 2;
 const TILE_SIZE = CELL_SIZE - CELL_PADDING * 2;
+const TILE_MARGIN = 3;
 const LETTER_SIZE = Math.floor(TILE_SIZE * .75);
 
-const getDefaultState = () => {
-    const keyMap = defaultKeyMap();
-    // TODO: default row states. Get what keys should be in what row and col
-    // generate tsx code for each row and store in rowStates
-    return State({ keyMap });
-}
 
-
-export const init = () => {
-    const initState = getDefaultState();
-    return Result(initState);
-}
-
-export const update = (state: state, action: action) => {
-    const {type} = action;
-    const {keyMap} = state;
-    if (type === Actions.Disable) {
-        const {data} = action as disableAction
-        const key = keyMap.get(data);
-        const newKey = key.merge({ active: false, color: defaultInactiveColor });
-        const newKeyMap = keyMap.set(data, newKey);
-        const newState = state.merge({ keyMap: newKeyMap });
-        return Result(newState);
-    }else if (type === Actions.SetBackgroundColor){
-        const {data} = action as setBackgroundColorAction
-        const key = keyMap.get(data.key);
-        const newKey = key.merge({ color: data.color });
-        const newKeyMap = keyMap.set(data.key, newKey);
-        const newState = state.merge({ keyMap: newKeyMap });
-        return Result(newState);
-    } else if (type === Actions.Press){
-        return Result(state);
-    }
-    throw new Error(`Invalid action type in keyboard: ${type}`);
-}
-
-export const view = (state: state, next?: (action: action) => void) => {
-    let board = renderTiles(state, next);
-    return (
-        <View style={styles.container as any}>
-            {board}
-        </View>
-    );
-}
-
-const getKeyPosition = (index: number, numOfKeys: number) => {
-    const keysPerRow = 5.19;//numOfKeys / KEYBOARDROWS;
-
-    let position = {
-        left: (index % keysPerRow) * CELL_SIZE + CELL_PADDING,
-        top: Math.trunc(index / keysPerRow) * CELL_SIZE + CELL_PADDING,
-    };
-    return position;
-
-}
-
-const renderTiles = (state: state, next: (action: action) => void) => {
-    const {language, keyMap} = state;
-    const chars = getAlphabet(language);
-    return chars.map<any>((char: string, index: number) => {
-        return (
-            <TouchableHighlight key={char.charCodeAt(0) } onPress={() => next(Action(Actions.Press, char)) }>
-                <View style={[styles.tile, getKeyPosition(index, chars.length), { backgroundColor: keyMap.get(char).color }]} >
-                    <Text style={styles.letter} > {char} </Text>
-                </View>
-            </TouchableHighlight>
-
-        );
-    });
-}
-
-var styles = StyleSheet.create({
+const styles = StyleSheet.create({
     container: {
-        width: width * 0.9,
-        height: CELL_SIZE * KEYBOARDROWS,
-        backgroundColor: 'transparent',
+        width: width,
+        justifyContent: 'center',
+        alignItems: 'flex-start',
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        backgroundColor: 'blue',
     },
     tile: {
-        position: 'absolute',
         width: TILE_SIZE,
         height: TILE_SIZE,
-        borderRadius: BORDER_RADIUS,
         justifyContent: 'center',
         alignItems: 'center',
+        margin: TILE_MARGIN,
+        borderRadius: BORDER_RADIUS,
         backgroundColor: defaultActiveColor,
     },
     letter: {
@@ -179,4 +93,41 @@ var styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
 });
-export const component = {init,update,view} as Component<state, action, any>;
+
+const keyPress = (key : Key) => {
+    return Action(Actions.Press, key);
+}
+
+export const isKeyPress = (action : action) => {
+    return action.type === Actions.Press;
+}
+
+const press = (next : (action : action) => void) => (key : Key) => () => {
+    if(key.enabled) {
+        next(keyPress(key));
+    }
+}
+
+const renderTiles = (keys: List<Key>, next: (action: action) => void) => {
+    return keys.map<any>((key: Key, index : number) => {
+        const {text, enabled} = key;
+        const color = enabled ? defaultActiveColor : defaultInactiveColor;
+        return (
+            <TouchableHighlight key={index} onPress={press(next)(key)}>
+            <View style={[styles.tile as any, {backgroundColor: color}]}>
+                <Text style={styles.letter as any}>{text}</Text>
+            </View>
+            </TouchableHighlight>
+        )
+    });
+}
+
+export const view = (keys: List<Key>, next?: (action: action) => void) => {
+    let board = renderTiles(keys, next);
+    return (
+        <View style={styles.container as any}>
+            {board}
+        </View>
+    );
+}
+
