@@ -27,15 +27,16 @@ enum Actions {
     Navigate,
 }
 
-const getComponent = (page : page) : Component<any, any, any> => {
-    if (page === Page.page.Main) {
-        return main;
-    } else if(page === Page.page.Guess) {
-        return guess;
-    } else if(page === Page.page.CreateWord) {
-        return createWord;
-    } else if(page === Page.page.LetterSelector) {
-        return letterSelector;
+const getComponent = (page: page): Component<any, any, any> => {
+    switch (page) {
+        case Page.page.CreateWord: 
+            return createWord;
+        case Page.page.Guess:
+            return guess;
+        case Page.page.LetterSelector:
+            return letterSelector;
+        case Page.page.Main:
+            return main;
     }
 }
 
@@ -83,68 +84,68 @@ export const init = () => {
 export const update = (state : state, action : action) : result => {
     console.log('UPDATE IN AAPP', action);
     const {pageStack, states} = state;
-    const {type} = action;
-    if (type === Actions.Navigate) {
-        const {data: navAction} = action as navigation;
-        if(navAction.type === Page.Actions.PushPage) {
-            const {data: pageAction} = navAction as Page.pushAction;
-            const {type: page, data: {data: pageState, reply}} = pageAction;
+    switch (action.type) {
+        case Actions.Navigate: {
+            const {data: navAction} = action as navigation;
+            if (navAction.type === Page.Actions.PushPage) {
+                const {data: pageAction} = navAction as Page.pushAction;
+                const {type: page, data: {data: pageState, reply}} = pageAction;
+                const component = getComponent(page);
+                const {state: initState, effect} = component.init(pageState, reply);
+                const nextPageState = PageState(initState)();
+                const newStack = pageStack!.push(page);
+                const newStates = states!.set(page, nextPageState);
+                const nextState = state.merge({
+                    pageStack: newStack,
+                    states: newStates,
+                });
+                return Result(nextState, effect.map(delegateTo(page)));
+            } else if (navAction.type === Page.Actions.PopPage) {
+                const {data: pageAction} = navAction as Page.popAction;
+                const page = pageStack!.peek();
+                const newStack = pageStack!.pop();
+                const newStates = states!.delete(page);
+                const nextState = state.merge({
+                    pageStack: newStack,
+                    states: newStates,
+                });
+                return Result(nextState);
+            }
+        }
+        case Actions.Delegate: {
+            const {data} = action as delegation;
+            const {type: page, data: pageAction} = data;
             const component = getComponent(page);
-            const {state: initState, effect} = component.init(pageState, reply);
-            const nextPageState = PageState(initState)();
-            const newStack = pageStack.push(page);
-            const newStates = states.set(page, nextPageState);
-            const nextState = state.merge({
-                pageStack: newStack,
-                states: newStates,
-            });
-            return Result(nextState, effect.map(delegateTo(page)));
-        } else if(navAction.type === Page.Actions.PopPage) {
-            const {data: pageAction} = navAction as Page.popAction;
-            const page = pageStack.peek();
-            const newStack = pageStack.pop();
-            const newStates = states.delete(page);
-            const nextState = state.merge({
-                pageStack: newStack,
-                states: newStates,
-            });
-            return Result(nextState);
+            const {states} = state;
+            const pageState = states!.get(page);
+            if (pageState) {
+                const result = component.update(pageState.state, pageAction);
+                const effect = result.effect.map(action => {
+                    const {type} = action;
+                    if (type === Page.reply) {
+                        const {data: {type: page, data: pageAction}} = action;
+                        return delegateTo(page)(pageAction);
+                    } else {
+                        return delegateTo(page)(action);
+                    }
+                });
+                const newPageState = PageState(result.state)();
+                const newStates = states!.set(page, newPageState);
+                const nextState = state.merge({
+                    states: newStates,
+                });
+                return Result(nextState, effect);
+            } else {
+                return Result(state);
+            }
         }
-    } else if (type === Actions.Delegate){
-        const {data} = action as delegation;
-        const {type: page, data: pageAction} = data;
-        const component = getComponent(page);
-        const {states} = state;
-        const pageState = states.get(page);
-        if(pageState) {
-            const result = component.update(pageState.state, pageAction);
-            const effect = result.effect.map(action => {
-                const {type} = action;
-                if(type === Page.reply) {
-                    const {data: {type: page, data: pageAction}} = action;
-                    return delegateTo(page)(pageAction);
-                } else {
-                    return delegateTo(page)(action);
-                }
-            });
-            const newPageState = PageState(result.state)();
-            const newStates = states.set(page, newPageState);
-            const nextState = state.merge({
-                states: newStates,
-            });
-            return Result(nextState, effect);
-        } else {
-            return Result(state);
-        }
-    } else {
-        throw new Error(`Invalid action type in app: ${type}`);
     }
 };
 
 export const view = (state : state, next : (action : action) => void) => {
     const {pageStack, states} = state;
-    const page = pageStack.peek();
-    const pageState = states.get(page);
+    const page = pageStack!.peek();
+    const pageState = states!.get(page);
     const component = getComponent(page);
     const delegate = (subaction : Action<any, any>) => next(delegateTo(page)(subaction));
     const navigate = (navAction : Page.action) => {

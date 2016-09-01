@@ -3578,12 +3578,15 @@ declare namespace  __React {
      */
 
     export type PlatformOSType = 'ios' | 'android'
+    interface PlatformOSOptions {
+        PlatformOSType : any;
+    }
 
     export interface PlatformStatic {
         OS: PlatformOSType,
 
         // only documented in PlatformSpecificInformation.md
-        select({PlatformOSType: any}): any
+        select(options : PlatformOSOptions): any
     }
 
     export interface DeviceEventSubscriptionStatic {

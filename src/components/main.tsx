@@ -8,6 +8,14 @@ import * as CreateWord from './createWord';
 import * as LetterSelector from './letterSelector';
 import {perform, range} from '../utils';
 
+import {
+    View,
+    TouchableHighlight,
+    Text,
+    ListView,
+    StyleSheet
+} from 'react-native';
+
 const uuid = require('uuid');
 
 
@@ -21,9 +29,10 @@ enum Actions {
     SelectLetters,
 }
 
+
 interface StateAttrs {
-    games? : List<Game.state >;
-    dataSource? : any;
+    games : List<Game.state >;
+    dataSource : any;
 }
 const State = Record<StateAttrs>({
     games: List([]),
@@ -31,15 +40,23 @@ const State = Record<StateAttrs>({
 });
 
 export type state = Record.IRecord<StateAttrs>;
-export type action = Action<Actions, any>;
+
+type gameAction = Action<Actions.Game, {id:string, action:Game.action} >;
+type letterSelectorAction = Action<Actions.SelectLetters, LetterSelector.replies >;
+type guessAction = Action<Actions.Guess, Guess.replies >;
+type createWordAction = Action<Actions.CreateWord, CreateWord.replies >;
+type createGameAction = Action<Actions.CreateGame, undefined >;
+type otherAction = Action<Actions.Delegate, undefined >;
+
+export type action = gameAction | guessAction | letterSelectorAction | createWordAction | createGameAction;
 export type result = Result<state, action>;
 
 const gameAction = (id : string) => (action : Game.action) : action =>
-    Action(Actions.Game, {id, action});
+    Action<Actions.Game, any>(Actions.Game, {id, action});
 
 const updateGame = (state:state, newGameState: any) => {
     // find game to update in games list
-    const index = state.games.findKey((game) => game.id == newGameState.id);
+    const index = state.games.findKey((game) => game!.id == newGameState.id);
     const nextGames = state.games.set(index, newGameState);
     const nextState = state.merge({
         games: nextGames,
@@ -56,69 +73,66 @@ export const init = () : result => {
     return Result(state, Effect.none);
 };
 
-export const update = (state : state, action : action) : result => {
-    const {type, data} = action;
-    if (type === Actions.Game) {
-        const {id, action} = data;
-        const {games, dataSource} = state;
-        const index = state.games.findKey((game) => game.id == id);
-        const {state: gameState, effect: gameEffect} = Game.update(games.get(index), action);
-        const nextGames = games.set(index, gameState);
-        const nextState = state.merge({
-            games: nextGames,
-            dataSource: dataSource.cloneWithRows(nextGames.toArray())
-        });
-        const effect = gameEffect.map(gameAction(id));
-        return Result(nextState, effect);
 
-    } else if (type === Actions.SelectLetters) {
-        const replyAction: Action<LetterSelector.Replies, any> = data;
-        const {type: reply} = replyAction;
-        if (reply === LetterSelector.Replies.GameChanged) {
-            const {data: newGameState} = replyAction;
-            return updateGame(state, newGameState);
-        }
-        throw new Error('Invalid reply from Guess to main');
-    } else if (type === Actions.Guess) {
-        const replyAction : Action<Guess.Replies, any> = data;
-        const {type:reply} = replyAction;
-        if (reply === Guess.Replies.GameChanged) {
-            const {data: newGameState} = replyAction;
-            return updateGame(state, newGameState);
-        }
-        throw new Error('Invalid reply from Guess to main');
-    } else if (type === Actions.CreateWord) {
-        const replyAction : Action<CreateWord.Replies, any> = data;
-        const {type:reply} = replyAction;
-        if (reply === CreateWord.Replies.GameChanged){
-            const {data:newGameState} = replyAction;
-            // find game to update in games list
-            return updateGame(state, newGameState);
+
+
+
+
+
+
+export const update = (state: state, outerAction: action): result => {
+    switch (outerAction.type) {
+        case Actions.Game: {
+            const {id, action} = outerAction.data;
+            const {games, dataSource} = state;
+            const index = state.games.findKey((game) => game!.id == id);
+            const {state: gameState, effect: gameEffect} = Game.update(games.get(index), action);
+            const nextGames = games.set(index, gameState);
+            const nextState = state.merge({
+                games: nextGames,
+                dataSource: dataSource.cloneWithRows(nextGames.toArray())
+            });
+            const effect = gameEffect.map(gameAction(id));
+            return Result(nextState, effect);
+        } case Actions.SelectLetters: {
+            const replyAction = outerAction.data;
+            switch (replyAction.type) {
+                case LetterSelector.Replies.GameChanged: {
+                    const {data: newGameState} = replyAction;
+                    return updateGame(state, newGameState);
+                }
             }
-            throw new Error('Invalid reply from CreateWord to main');    
-        } else if (type === Actions.CreateGame){
-        const id = uuid.v4(); 
-        const {state: newGame, effect: gameEffect} = Game.init({id, language: 'eng'});
-        const newGameStates = state.games.push(newGame);
-        const nextState = state.merge({
-            games: newGameStates,
-            dataSource: state.dataSource.cloneWithRows(newGameStates.toArray()),
-        })
-        const effects = Effect.all([gameEffect.map(gameAction(id))]);
-        return Result(nextState, effects);
-    } else if (type === Actions.Delegate){
-       return Result(state); 
+            throw new Error('Invalid reply from Guess to main');
+        } case Actions.Guess: {
+            const replyAction = outerAction.data;
+            switch (replyAction.type) {
+                case Guess.Replies.GameChanged: {
+                    const {data: newGameState} = replyAction;
+                    return updateGame(state, newGameState);
+                }
+            }
+        } case Actions.CreateWord: {
+            const replyAction = outerAction.data;
+            switch (replyAction.type) {
+                case CreateWord.Replies.GameChanged: {
+                    const {data: newGameState} = replyAction;
+                    // find game to update in games list
+                    return updateGame(state, newGameState);
+                }
+            }
+        } case Actions.CreateGame: {
+            const id = uuid.v4();
+            const {state: newGame, effect: gameEffect} = Game.init({ id, language: 'eng' });
+            const newGameStates = state.games.push(newGame);
+            const nextState = state.merge({
+                games: newGameStates,
+                dataSource: state.dataSource.cloneWithRows(newGameStates.toArray()),
+            })
+            const effects = Effect.all([gameEffect.map(gameAction(id))]);
+            return Result(nextState, effects);
+        }
     }
-    throw new Error(`Invalid action type in main: ${type}`);
 };
-
-import {
-    View,
-    TouchableHighlight,
-    Text,
-    ListView,
-    StyleSheet
-} from 'react-native';
 
 const pushGamePage = (game:Game.state) => {
     switch (game.step) {
@@ -131,41 +145,19 @@ const pushGamePage = (game:Game.state) => {
                 Action(Page.reply, Action(Page.page.Main, Action(Actions.Guess, reply))));
             return Page.push(Page.page.Guess, game, guessReply);
         case Game.GameSteps.createWord:
-            const createReply: Reply<action> = (reply: CreateWord.replies) => 
-                Effect(Action(Page.reply, Action(Page.page.Main, Action(Actions.CreateWord, reply))));
-            return Page.push( Page.page.CreateWord, game, createReply);
+        //TODO: lös det här utan att tvinga typ
+            const createReply: Reply<action> = (reply: CreateWord.replies) =>
+                Effect(Action(Page.reply, Action(Page.page.Main, Action<Actions.CreateWord, CreateWord.replies>(Actions.CreateWord, reply))));
+
+            //const createReply: Reply<action> = (reply: CreateWord.replies) => 
+            //    Effect(Action(Page.reply, Action(Page.page.Main, Action(Actions.CreateWord, reply))));
+            return Page.push(Page.page.CreateWord, game, createReply);
         //case Game.GameSteps.complete: return Page.push( Page.page.Guess, game, createReply);
     }
+    throw new Error("Should not come here")
 }
 
-const renderRow = (navigate: (action : Page.action) => void) => (game: Game.state) => {
-    
-    return (
-        <TouchableHighlight onPress={() => navigate(pushGamePage(game))}>
-            <View style={styles.row}>
-                {Game.view(game)}
-            </View>
-        </TouchableHighlight>
-    );
-}
 
-export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
-    const {games, dataSource} = state;
-    return (
-        <View style={styles.container} >
-            <TouchableHighlight style={styles.createButton} onPress={() => next(Action(Actions.CreateGame))} >
-                <View>
-                    <Text> New game </Text>
-                </View>
-            </TouchableHighlight>
-            <ListView
-                style={styles.listView}
-                dataSource={dataSource}
-                renderRow={(game) => renderRow(navigate)(game)}
-            />
-        </View>
-   );
-};
 
 const styles = StyleSheet.create({
     container: {
@@ -185,5 +177,36 @@ const styles = StyleSheet.create({
         borderColor: 'rgb(239,239,239)',
     },
 })
+
+const renderRow = (navigate: (action : Page.action) => void) => (game: Game.state) => {
+    
+    return (
+        <TouchableHighlight onPress={() => navigate(pushGamePage(game))}>
+            <View style={styles.row}>
+                {Game.view(game)}
+            </View>
+        </TouchableHighlight>
+    );
+}
+
+export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
+    const {games, dataSource} = state;
+    const createGame = Action<Actions.CreateGame>(Actions.CreateGame);
+    return (
+        <View style={styles.container} >
+            <TouchableHighlight style={styles.createButton} onPress={() => next!(createGame)} >
+                <View>
+                    <Text> New game </Text>
+                </View>
+            </TouchableHighlight>
+            <ListView
+                style={styles.listView}
+                dataSource={dataSource}
+                renderRow={(game) => renderRow(navigate!)(game)}
+            />
+        </View>
+   );
+};
+
 
 export const component = {init,update,view} as Component<state, action, any>;

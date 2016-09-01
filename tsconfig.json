@@ -7,7 +7,9 @@
         "preserveConstEnums": true,
         "outDir": "built",
         "rootDir": "src",
-        "sourceMap": true
+        "sourceMap": true,
+        "noImplicitReturns": true,
+        "strictNullChecks": true
     },
     "filesGlob": [
         "typings/**/*.d.ts",

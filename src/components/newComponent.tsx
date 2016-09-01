@@ -1,4 +1,4 @@
-import * as React from 'react';
+/*import * as React from 'react';
 import {Record, Map, List, is as immutableEqual} from 'immutable';
 import {Action, Effect, Result, Component, Reply} from 'effectjs';
 import * as Page from './Page';
@@ -147,4 +147,4 @@ const styles = StyleSheet.create({
 }) 
 
 
-export const component = {init, update, view} as Component<state, action, any>;
+export const component = {init, update, view} as Component<state, action, any>;*/

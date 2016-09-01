@@ -48,10 +48,13 @@ const State = Record<StateAttrs>({
     letters: undefined,
 });
 
-export type replies = Action<Replies, any>;
 export const enum Replies {
     GameChanged,
+    Never,//Tagged unions require enums with multiple options
 }
+
+export type replies = gameChangedAction;
+type gameChangedAction = Action<Replies.GameChanged, Game.state>;
 
 export type state = Record.IRecord<StateAttrs>;
 export type action = Action<Actions, any>;
@@ -102,17 +105,6 @@ const subComponentsInit = <S, A>(componentList : config<S,A>[]) => {
     };
 }
 
-const handleDelagation = (state : state, {id, action}) => {
-    const {components, states, mappers} = state; 
-    const component = components.get(id);
-    const componentState = states.get(id);
-    const result = component.update(componentState, action);
-    const newStates = states.set(id, result.state);
-    const mapper = mappers.get(id);
-    const effect : Effect<action> = result.effect.map(mapper(id));
-    const pair : [Map<string, any>, Effect<action>] = [newStates, effect];
-    return pair;
-}
 
 type SubState = state  ;
 
@@ -147,21 +139,17 @@ export const update = (state : state, action : action) : result => {
     if (type === Actions.stateChanged){
         // do something and return your new state and effects
         return Result(state, Effect.none);
-    } else if (type === Actions.delegate) {
-        const [states, effect] = handleDelagation(state, data);
-        const nextState = state.merge({states});
-        return Result(nextState, effect);
     } else if (type === Actions.done) {
-        const {state:gameState, effect:gameEffect}  = Game.update(state.game, Action(Game.Actions.NextGameStep, undefined));
-        const replyEffect = state.reply(Action(Replies.GameChanged ,gameState));
+        const {state:gameState, effect:gameEffect}  = Game.update(state.game!, Action<Game.Actions.NextGameStep>(Game.Actions.NextGameStep));
+        const replyEffect = state.reply!(Action(Replies.GameChanged ,gameState));
         //TODO: handle effects
         const newState = state.merge({game:gameState});
         return Result(newState, replyEffect);
     } else if (type == Actions.move){
         const {newLetter:letter} = data;
         const {letters} = state;
-        const letterIndex = letters.findKey((item:Letter)=> item.id === letter.id);
-        const newLetters = letters.remove(letterIndex).push(letter);
+        const letterIndex = letters!.findKey((item:Letter)=> item.id === letter.id);
+        const newLetters = letters!.remove(letterIndex).push(letter);
         const nextState = state.merge({letters: newLetters});
         return Result(nextState);
     }
@@ -199,33 +187,6 @@ const getTransform = (letter:Letter, state : state) =>{
     return {transform:transform};
 }
 
-export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
-    const letterViews = state.letters.map(letter => {
-                return (<View
-                    onResponderMove={setPosition(letter, next)}
-                    onResponderGrant={setStartPosition(letter, next)}
-                    onStartShouldSetResponder={returnTrue}
-                    onMoveShouldSetResponder={returnTrue}
-                    style={[styles.tile, getTransform(letter, state)]}
-                    key={letter.id}>
-                    <Text style={[styles.letter]}>{letter.character}</Text>
-                </View>)
-            });
-    return (
-        <View>
-            <View style={styles.container}>
-                <TouchableHighlight style={styles.backButton} onPress={() => { next(Action(Actions.done)); navigate(Page.pop()) }} > 
-                    <View>
-                        <Text> Done! </Text>
-                    </View>
-                </TouchableHighlight>
-            </View>
-            {letterViews}
-        </View>
-   )
-};
-
-
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -261,5 +222,31 @@ const styles = StyleSheet.create({
     },
 });
 
+
+export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
+    const letterViews = state.letters!.map((letter : Letter)  => {
+                return (<View
+                    onResponderMove={setPosition(letter, next!)}
+                    onResponderGrant={setStartPosition(letter, next!)}
+                    onStartShouldSetResponder={returnTrue}
+                    onMoveShouldSetResponder={returnTrue}
+                    style={[styles.tile, getTransform(letter, state)]}
+                    key={letter.id}>
+                    <Text style={[styles.letter]}>{letter.character}</Text>
+                </View>)
+            });
+    return (
+        <View>
+            <View style={styles.container}>
+                <TouchableHighlight style={styles.backButton} onPress={() => { next!(Action(Actions.done)); navigate!(Page.pop()) }} > 
+                    <View>
+                        <Text> Done! </Text>
+                    </View>
+                </TouchableHighlight>
+            </View>
+            {letterViews}
+        </View>
+   )
+};
 
 export const component = {init, update, view} as Component<state, action, any>;
