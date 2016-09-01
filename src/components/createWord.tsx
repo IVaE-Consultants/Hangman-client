@@ -95,8 +95,8 @@ const subComponentsInit = <S, A>(componentList : config<S,A>[]) => {
 
 
 export const init = (game : Game.state, reply? : Reply<any>) : result => {
-    const alphabet = [...'FGHASDTUUZX']
-    const keys = Keyboard.createKeys((text : string, id : number) => {
+    const alphabet = [...'FGHASDTUUZX'];
+    const keyboardKeys = Keyboard.createKeys((text : string, id : number) => {
         return Keyboard.Key({text, id});
     })(alphabet);
 
@@ -104,7 +104,7 @@ export const init = (game : Game.state, reply? : Reply<any>) : result => {
         myWord: '',
         game,
         reply,
-        keys,
+        keyboardKeys,
     });
     return Result(state);
 };

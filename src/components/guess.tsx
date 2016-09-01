@@ -57,7 +57,7 @@ export const enum Replies {
 export const init = (game : Game.state, reply : Reply<any>) : result => {
     const word = game.roundStates!.get(game.round!).theirWord!.word!;
     const alphabet = Keyboard.getAlphabet();
-    const keys = Keyboard.createKeys((text : string) => {
+    const keyboardKeys = Keyboard.createKeys((text : string) => {
         return Keyboard.Key({text});
     })(alphabet);
     const nextState = State({
@@ -65,7 +65,7 @@ export const init = (game : Game.state, reply : Reply<any>) : result => {
         reply,
         unknown: word.length,
         revealed: [...Array(word.length+1).join('?')],
-        keys,
+        keyboardKeys,
     });
     return Result(nextState, Effect.none);
 };
