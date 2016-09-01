@@ -38,7 +38,7 @@ const State = Record<StateAttrs>({
 
 type state = Record.IRecord<StateAttrs>;
 type action = Action<Actions,Keyboard.action>;
-type result = Result<state,Effect<action>>;
+type result = Result<state,action>;
 type Letter = string;
 
 export const enum Replies {
@@ -50,7 +50,7 @@ export type replies = Action<Replies, any>;
 export const init = (game : Game.state, reply : Reply<any>) : result => {
     const {state: keyboardState, effect} = Keyboard.init();
     // TODO: map effects
-    const word = game.theirWord.word;
+    const word = game.roundStates.get(game.round).theirWord.word;
     const nextState = State({
         game,
         reply,
@@ -74,7 +74,7 @@ export const update = (state : state, action : action) : result => {
         let letter = char.toUpperCase();
         const {round, roundStates} = game;
         let {revealed, unknown, firstKnown, lastKnown} = state;
-        const word = game.theirWord.word;
+        const word = game.roundStates.get(game.round).theirWord.word;
         let chars = [...word];
 
         // if already guessed letter, do nothing
@@ -145,8 +145,9 @@ export const view = (state : state, next? : (action : action) => void, navigate?
     const testboard = Keyboard.view(keyboardState, (act : Keyboard.action) : void => next(Action(Actions.GuessLetter, act)));
     const {triesLeft} = game.roundStates.get(round);
     let {revealed, unknown, firstKnown, lastKnown} = state;
-    const word = game.theirWord.word;
+    const word = game.roundStates.get(game.round).theirWord.word;
     let visible : any;
+    console.log('THE ACTUAL KEYBOARD', testboard);
     // have to check undefined cause firstknown can be 0
     if(firstKnown!=undefined){
         visible = revealed.slice(firstKnown, lastKnown+1);
@@ -189,6 +190,7 @@ export const view = (state : state, next? : (action : action) => void, navigate?
    );
 };
 
+
 // width and height null on bg : http://stackoverflow.com/questions/30273624/how-to-stretch-a-static-image-as-background-in-react-native
 const styles = StyleSheet.create({
     backgroundImage: {
@@ -210,3 +212,4 @@ const styles = StyleSheet.create({
     },
 });
 
+export const component = {init,update,view} as Component<state, action, any>;

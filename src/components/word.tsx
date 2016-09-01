@@ -3,7 +3,7 @@ import {Record, Map} from 'immutable';
 import {Action, Effect, Result, Component} from 'effectjs';
 
 
-const enum Actions {
+export const enum Actions {
     Word,
     WordError,
 }
@@ -33,9 +33,12 @@ const getWord = () : Promise<string> => {
         .then((response : any) => response.text());
 }
 
-export const init = () : result => {
+export const init = (auto: boolean) : result => {
+    if(auto){
     const effect = perform(getWord(), (word : string) => gotWord(word), (error : Error) => gotWord('HELLO')); //wordError(error));
     return Result(State(), effect);
+    }
+    return Result(State());
 }
 
 export const update = (state : state, action : action) : result => {
