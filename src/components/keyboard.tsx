@@ -7,6 +7,7 @@ import {
     View,
     TouchableHighlight,
     Text,
+    Dimensions,
 } from 'react-native';
 
 export const enum Actions {
@@ -58,7 +59,7 @@ export type pressAction = Action<Actions, Key>;
 export type setBackgroundColorAction = Action<Actions, { key : string, color : string } >;
 export type action = pressAction | disableAction | setBackgroundColorAction;
 
-const {width, height} = require('Dimensions').get('window');
+const {width, height} = Dimensions.get('window');
 const KEYBOARDROWS = 5; // Number of rows to divide letters in
 const CELL_SIZE = Math.floor(width * .13); // 20% of the screen width
 const CELL_PADDING = Math.floor(CELL_SIZE * .05); // 5% of the cell size
