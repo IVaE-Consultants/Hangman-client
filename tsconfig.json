@@ -7,7 +7,9 @@
         "preserveConstEnums": true,
         "outDir": "built",
         "rootDir": "src",
-        "sourceMap": true
+        "sourceMap": true,
+        "noImplicitReturns": true,
+        "strictNullChecks": true
     },
     "filesGlob": [
         "typings/**/*.d.ts",
@@ -18,7 +20,8 @@
     "exclude": [
         "typings/browser.d.ts",
         "typings/browser",
-        "node_modules"
+        "node_modules",
+        "test"
     ],
     "compileOnSave": false,
     "atom": {

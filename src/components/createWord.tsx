@@ -4,6 +4,7 @@ import {Action, Effect, Result, Component, Reply} from 'effectjs';
 import * as Page from './Page';
 import * as Keyboard from './keyboard';
 import * as Game from './game';
+import * as Word from './word';
 
 const uuid = require('uuid');
 
@@ -16,8 +17,12 @@ enum Actions {
     Done,
 }
 
+
+export type replies = gameChangedAction;
+type gameChangedAction = Action<Replies.GameChanged, Game.state>;
 export const enum Replies {
     GameChanged,
+    Never,//Tagged unions require enums with multiple options
 }
 interface StateAttrs {
     reply? : Reply<any>;
@@ -26,10 +31,10 @@ interface StateAttrs {
     mappers?: Map<string, mapper>;
     game?: Game.state;
     myWord?: string;
-    keys?: List<Keyboard.Key>;
+    keyboardKeys?: List<Keyboard.Key>;
 }
 const State = Record<StateAttrs>({
-    keys: undefined,
+    keyboardKeys: undefined,
     myWord: undefined,
     game: undefined,
     components: undefined,
@@ -88,23 +93,10 @@ const subComponentsInit = <S, A>(componentList : config<S,A>[]) => {
     };
 }
 
-const handleDelagation = (state : state, {id, action}) => {
-    const {components, states, mappers} = state;
-    const component = components.get(id);
-    const componentState = states.get(id);
-    const result = component.update(componentState, action);
-    const newStates = states.set(id, result.state);
-    const mapper = mappers.get(id);
-    const effect : Effect<action> = result.effect.map(mapper(id));
-    const pair : [Map<string, any>, Effect<action>] = [newStates, effect];
-    return pair;
-}
-
-export type replies = Action<Replies, any>;
 
 export const init = (game : Game.state, reply? : Reply<any>) : result => {
-    const alphabet = [...'FGHASDTUUZX']
-    const keys = Keyboard.createKeys((text : string, id : number) => {
+    const alphabet = [...'FGHASDTUUZX'];
+    const keyboardKeys = Keyboard.createKeys((text : string, id : number) => {
         return Keyboard.Key({text, id});
     })(alphabet);
 
@@ -112,7 +104,7 @@ export const init = (game : Game.state, reply? : Reply<any>) : result => {
         myWord: '',
         game,
         reply,
-        keys,
+        keyboardKeys,
     });
     return Result(state);
 };
@@ -123,20 +115,20 @@ export const update = (state : state, action : action) : result => {
         // do something and return your new state and effects
         return Result(state, Effect.none);
     } else if (type === Actions.selectLetter){
-        const {myWord: oldWord, keys: oldKeys} = state;
+        const {myWord: oldWord, keyboardKeys: oldKeys} = state;
         const {data: key} = data as Keyboard.pressAction;
         const myWord = oldWord + key.text;
-        const keys = Keyboard.disableKey(key, oldKeys);
-        const nextState = state.merge({myWord, keys});
+        const keyboardKeys = Keyboard.disableKey(key, oldKeys!);
+        const nextState = state.merge({myWord, keyboardKeys});
         return Result(nextState);
     } else if (type === Actions.Done){
         const {game, myWord, reply} = state;
         if (myWord) {
-            const {state: gameState2, effect: gameEffect2} = Game.update(game, Action(Game.Actions.MyWord, myWord));
-            const {state: gameState, effect: gameEffect} = Game.update(gameState2, Action(Game.Actions.NextGameStep, undefined));
+            const {state: gameState2, effect: gameEffect2} = Game.update(game!, Action<Game.Actions.GotWord, string>(Game.Actions.GotWord, myWord));
+            const {state: gameState, effect: gameEffect} = Game.update(gameState2, Action<Game.Actions.NextGameStep>(Game.Actions.NextGameStep));
 
             const nextState = state.merge({ game: gameState });
-            const replyEffect = reply(Action(Replies.GameChanged, gameState));
+            const replyEffect = reply!(Action(Replies.GameChanged, gameState));
             return Result(nextState, replyEffect);
         } else {
             return Result(state);
@@ -179,12 +171,12 @@ const styles = StyleSheet.create({
 });
 
 export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
-    const {keys} = state;
-    const keyboard = Keyboard.view(keys, (act : Keyboard.action) : void => next(Action(Actions.selectLetter, act)));
+    const {keyboardKeys} = state;
+    const keyboard = Keyboard.view(keyboardKeys!, (act : Keyboard.action) : void => next!(Action(Actions.selectLetter, act)));
     const {myWord} = state;
     return (
         <View style={styles.container as any}>
-            <TouchableHighlight style={styles.backButton} onPress={() => {next(Action(Actions.Done)); navigate(Page.pop()) }} >
+            <TouchableHighlight style={styles.backButton} onPress={() => {next!(Action(Actions.Done)); navigate!(Page.pop()) }} >
                 <View>
                     <Text> Done! </Text>
                 </View>

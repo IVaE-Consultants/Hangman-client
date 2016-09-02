@@ -13,6 +13,7 @@ export const enum Actions{
     MyWord,
     TheirWord,
     NextGameStep,
+    GotWord,
 }
 
 export const enum GameSteps{
@@ -43,7 +44,7 @@ const RoundState = Record<RoundAttrs>({
 type roundState = RoundAttrs & Record.TypedMap<RoundAttrs>;
 
 interface StateAttrs {
-    id? : number;
+    id? : string;
     name? : string;
     step?: GameSteps;
     round?: number;
@@ -59,6 +60,17 @@ const State = Record<StateAttrs>({
     language: undefined,
     roundStates: undefined,
 });
+
+
+const myAction = (action : Word.action) : action => Action<Actions.MyWord, Word.action>(Actions.MyWord, action);
+const theirAction = (action : Word.action) : action => Action<Actions.TheirWord, Word.action>(Actions.TheirWord, action);
+
+const initGuessedTable = (language : Language) => {
+    const chars = getAlphabet(language);
+    return chars.reduce( (acc: Guessed, letter: string) : Guessed  => {
+        return acc.set(letter, false);
+    }, Map() as Guessed);
+}
 
 const initRoundStates = (numOfRounds : number, language : Language) : {roundStates: List< RoundAttrs>, roundEffects : Effect<action>} => {
     const {state: theirWord, effect: theirEffect} = Word.init(true);
@@ -77,22 +89,18 @@ const initRoundStates = (numOfRounds : number, language : Language) : {roundStat
     return {roundStates, roundEffects};
 }
 
-const initGuessedTable = (language : Language) => {
-    const chars = getAlphabet(language);
-    return chars.reduce( (acc: Guessed, letter: string) : Guessed  => {
-        return acc.set(letter, false);
-    }, Map() as Guessed);
-}
+
 
 export type state = Record.IRecord<StateAttrs>;
-export type action = Action<Actions, Word.action> | Action<Actions, string>;
+export type action = Action<Actions.MyWord, Word.action>
+    | Action<Actions.TheirWord, Word.action>
+    | Action<Actions.NextGameStep, undefined>
+    | Action<Actions.GotWord, string>
+    ;
 export type result = Result<state, action>;
 export const theirWord = (state : state) : string => {
-    return state.roundStates.get(state.round).theirWord.word;
+    return state.roundStates!.get(state.round!).theirWord!.word!;
 }
-
-const myAction = (action : Word.action) : action => Action(Actions.MyWord, action);
-const theirAction = (action : Word.action) : action => Action(Actions.TheirWord, action);
 
 type options = {
     id : string;
@@ -112,48 +120,40 @@ export const init = ({id, language} : options) : result => {
     return Result(state, roundEffects);
 };
 
-export const update = (state : state, action : action) : result  => {
-    const {type, data} = action;
-    if(type === Actions.MyWord) {
-        const word = data as string;
-        const roundState = state.roundStates.get(state.round);
-        const {state: myWord, effect: myEffect} = Word.update(roundState.myWord, Action(Word.Actions.Word, word.toUpperCase()));
-        const nextState = state.mergeIn(['roundStates', state.round],{myWord});
-        const effect = myEffect.map((action: Word.action) : action => myAction(action));
-        return Result(nextState, effect);
-    } else if(type === Actions.TheirWord) {
-        const wordAction = data as Action<Word.Actions, string>;
-        const roundState = state.roundStates.get(state.round);
-        const {state: theirWord, effect: theirEffect} = Word.update(roundState.theirWord, wordAction);
-        const nextState = state.mergeIn(['roundStates', state.round],{theirWord});
-        const effect = theirEffect.map((action: Word.action) : action => theirAction(action));
-        return Result(nextState, effect);
-    } else if (type === Actions.NextGameStep) {
-        const step = ((step: GameSteps): GameSteps => {
-            switch (step) {
-                case GameSteps.letterSelector: return GameSteps.createWord;
-                case GameSteps.createWord: return GameSteps.guessWord;
-                case GameSteps.guessWord: return GameSteps.complete;
-                //case GameSteps.complete: return GameSteps.createWord;
-                //default:
-                //    throw new Error("Invalid step in game")
-            }
-        })(state.step);
-        const newState = state.merge({step})
-        return Result(newState);
+export var update = (state: state, action: action): result => {
+    switch (action.type) {
+        case Actions.GotWord: {
+            const word = action.data;
+            const wordAction = Action<Actions.MyWord, Word.action>(Actions.MyWord, Word.gotWord(word));
+            return update(state, wordAction);
+        }
+        case Actions.MyWord: {
+            const wordAction = action.data;
+            const roundState = state.roundStates!.get(state.round!);
+            const {state: myWord, effect: myEffect} = Word.update(roundState.myWord!, wordAction);
+            const nextState = state.mergeIn(['roundStates', state.round], { myWord });
+            const effect = myEffect.map((action: Word.action): action => myAction(action));
+            return Result(nextState, effect);
+        } case Actions.TheirWord: {
+            const wordAction = action.data;
+            const roundState = state.roundStates!.get(state.round!);
+            const {state: theirWord, effect: theirEffect} = Word.update(roundState.theirWord!, wordAction);
+            const nextState = state.mergeIn(['roundStates', state.round], { theirWord });
+            const effect = theirEffect.map((action: Word.action): action => theirAction(action));
+            return Result(nextState, effect);
+        } case Actions.NextGameStep: {
+            const step = ((step: GameSteps): GameSteps => {
+                switch (step) {
+                    case GameSteps.letterSelector: return GameSteps.createWord;
+                    case GameSteps.createWord: return GameSteps.guessWord;
+                    case GameSteps.guessWord: return GameSteps.complete;
+                    case GameSteps.complete: return GameSteps.createWord;
+                }
+            })(state.step!);
+            const newState = state.merge({ step })
+            return Result(newState);
+        }
     }
-};
-
-export const view = (state : state, next? : any) => {
-    const roundState = state.roundStates.get(state.round);
-    const {name} = state;
-    const {myWord, theirWord} = roundState;
-    return (
-        <View style={styles.container as any}>
-            <Text style={styles.textStyle}>{name}</Text>
-            <Text style={styles.textStyle}>{ myWord ? myWord.word : ""}</Text>
-        </View>
-    );
 };
 
 const styles = StyleSheet.create({
@@ -166,6 +166,19 @@ const styles = StyleSheet.create({
         fontSize: 16,
         marginLeft: 20,
     }
-})
+});
+
+export const view = (state : state, next? : any) => {
+    const roundState = state.roundStates!.get(state.round!);
+    const {name} = state;
+    const {myWord, theirWord} = roundState;
+    return (
+        <View style={styles.container as any}>
+            <Text style={styles.textStyle}>{name}</Text>
+            <Text style={styles.textStyle}>{ myWord ? myWord.word : ""}</Text>
+        </View>
+    );
+};
+
 
 export const component = {init,update,view} as Component<state, action, any>;

@@ -29,7 +29,7 @@ export const getAlphabet = (language : string = defaultLanguage) : string[] => {
 }
 
 export const disableKey = (toDisable : Key, keys : List<Key>) : List<Key> => {
-    const index = keys.findIndex((key) => key.id === toDisable.id);
+    const index = keys.findIndex((key) => key!.id === toDisable.id);
     const disabled = toDisable.merge({enabled: false});
     return keys.set(index, disabled);
 };
@@ -124,7 +124,7 @@ const renderTiles = (keys: List<Key>, next: (action: action) => void) => {
 }
 
 export const view = (keys: List<Key>, next?: (action: action) => void) => {
-    let board = renderTiles(keys, next);
+    let board = renderTiles(keys, next!);
     return (
         <View style={styles.container as any}>
             {board}

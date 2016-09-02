@@ -7,7 +7,7 @@ declare namespace EffectJS {
         actions? : any;
     }
     interface Effect<A> {
-        map?: <B>(f : ((a : A) => B)) => Effect<B>;
+        map: <B>(f : ((a : A) => B)) => Effect<B>;
     }
     namespace Effect {
         var none: Effect<any>;
@@ -19,15 +19,16 @@ declare namespace EffectJS {
         state: S;
         effect: Effect<A>;
     }
-    function Result<S,A>(state :S, effect : Effect<A>) : Result<S,A & Effect<A>>
-    function Result<S,A>(state :S) : Result<S,A & Effect<A>>
+    function Result<S,A>(state :S, effect : Effect<A>) : Result<S,A>
+    function Result<S,A>(state :S) : Result<S,A>
 
+    
     interface Action<K,V> {
         type : K;
         data : V;
     }
     function Action<K,V>(type : K, data: V) : Action<K,V>
-    function Action<K,V>(type : K) : Action<K,V>
+    function Action<K>(type : K) : Action<K, undefined>
 }
 
 declare module "effectjs" {

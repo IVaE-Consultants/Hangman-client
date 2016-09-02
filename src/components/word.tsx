@@ -18,13 +18,13 @@ const State = Record<StateAttrs>({
 });
 
 export type state = Record.IRecord<StateAttrs>;
-export type action = Action<Actions, any>;
+export type action = Action<Actions.Word, string> | Action<Actions.WordError, Error>;
 export type result = Result<state, action>;
 
 declare var fetch : any;
 
-const gotWord = (word : string) : action => Action(Actions.Word, word.toUpperCase());
-const wordError = (error : Error) : action => Action(Actions.WordError, error);
+export const gotWord = (word : string) : action => Action<Actions.Word, string>(Actions.Word, word.toUpperCase());
+const wordError = (error : Error) : action => Action<Actions.WordError, Error>(Actions.WordError, error);
 
 const getWord = () : Promise<string> => {
     return fetch('http://randomword.setgetgo.com/get.php')
@@ -42,16 +42,17 @@ export const init = (auto: boolean) : result => {
 }
 
 export const update = (state : state, action : action) : result => {
-    const {type, data} = action;
-    if(type === Actions.Word) {
-        const word = data;
-        return Result(state.merge({word}))
-    } else if(type === Actions.WordError) {
-        const error = data;
-        return Result(state.merge({error}));
+    switch (action.type) {
+        case Actions.Word: {
+            const {data: word} = action;
+            return Result(state.merge({ word }))
+        } case Actions.WordError: {
+            const error = action.data;
+            return Result(state.merge({ error }));
+        }
     }
 }
 
 export const word = (state : state) : string => {
-    return state.word;
+    return state.word!;
 }
