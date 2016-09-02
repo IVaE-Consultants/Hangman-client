@@ -17,13 +17,14 @@
     "test": "tsc -p tsconfig.test.json && ava",
     "start": "concurrently \"npm run watch\" \"node node_modules/react-native/local-cli/cli.js start\" ",
     "android": "adb reverse tcp:8081 tcp:8081 && node node_modules/react-native/local-cli/cli.js run-android",
-    "ios": "node node_modules/react-native/local-cli/cli.js run-ios"
+    "ios": "node node_modules/react-native/local-cli/cli.js run-ios",
+    "commit": "git-cz"
   },
   "ava": {
-      "require": [
-          "react-native-mock/mock.js",
-          "babel-register"
-      ],
+    "require": [
+      "react-native-mock/mock.js",
+      "babel-register"
+    ],
     "babel": {
       "presets": [
         "react-native"
@@ -37,6 +38,7 @@
     "babel-preset-es2015": "^6.14.0",
     "babel-preset-react": "^6.11.1",
     "babel-preset-stage-0": "^6.5.0",
+    "commitizen": "^2.8.6",
     "concurrently": "^2.0.0",
     "gulp": "^3.9.1",
     "gulp-typescript": "^2.12.1",
