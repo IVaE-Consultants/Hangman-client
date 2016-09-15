@@ -7,6 +7,7 @@ import * as Game from './game';
 import * as Word from './word';
 
 const uuid = require('uuid');
+const UIManager = require('NativeModules')
 
 
 enum Actions {
@@ -101,9 +102,17 @@ export const update = (state : state, action : action) : result => {
                 case Keyboard.Actions.Move:
                     const {data: letter} = innerAction;
                     const {keyboardKeys} = state;
-                    const letterIndex = keyboardKeys!.findKey((item: Keyboard.Key) => item.id === letter.id);
-                    const newLetters = keyboardKeys!.remove(letterIndex).push(letter);
+                    const newKeyboardKeys = keyboardKeys!.map(x=> {
+                        if (x!.zIndex <= letter.zIndex){
+                            return x!
+                        } else {
+                            return x!.set("zIndex", x!.zIndex - 1);
+                        }
+                    }).toList();
+                    const letterIndex = newKeyboardKeys.findKey((item: Keyboard.Key) => item.id === letter.id);
+                    const newLetters = newKeyboardKeys.set(letterIndex,letter.set("zIndex", newKeyboardKeys!.count())); 
                     const nextState = state.merge({ keyboardKeys: newLetters });
+
                     return Result(nextState);
             }
         case Actions.Done:

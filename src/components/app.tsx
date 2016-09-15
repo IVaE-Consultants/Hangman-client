@@ -82,7 +82,6 @@ export const init = () => {
 };
 
 export const update = (state : state, action : action) : result => {
-    console.log('UPDATE IN AAPP', action);
     const {pageStack, states} = state;
     switch (action.type) {
         case Actions.Navigate: {

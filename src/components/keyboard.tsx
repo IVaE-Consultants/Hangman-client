@@ -45,6 +45,8 @@ const defaults = {
         y:0,
         offsetX:0,
         offsetY:0,
+        zIndex: 0,
+        isMoved:false,
     };
     return Record<KeyAttrs>(defaults)(attributes);
 };
@@ -57,6 +59,8 @@ interface KeyAttrs {
     y?:number;
     offsetX?:number;
     offsetY?:number;
+    zIndex?:number;
+    isMoved?:boolean;
 }
 
 export const createKeys = (f : (text : string, index? : number) => Key) =>
@@ -121,14 +125,22 @@ const setPosition = (letter:Key, next: (action : moveAction)=> void) => (e:any) 
     const pressX = e.nativeEvent.pageX as number;
     const pressY = e.nativeEvent.pageY as number;
     const {offsetX, offsetY, x, y} = letter;
-    const newLetter = letter.merge({x:x+pressX-offsetX, y:y+pressY-offsetY, offsetX:pressX, offsetY:pressY});
+    const newLetter = letter.merge({x:x+pressX-offsetX, y:y+pressY-offsetY, offsetX:pressX, offsetY:pressY, isMoved:true});
     next(Action<Actions.Move, Key>(Actions.Move, newLetter));      
 };
 const setStartPosition = (letter:Key, next: (action : moveAction)=> void) => (e:any) =>{
     const x = e.nativeEvent.pageX as number;
     const y = e.nativeEvent.pageY as number;
-    const newLetter = letter.merge({offsetX: x, offsetY: y});
+    const newLetter = letter.merge({offsetX: x, offsetY: y, isMoved:false});
     next(Action<Actions.Move, Key>(Actions.Move, newLetter));    
+};
+const setReleasePosition = (letter:Key, next: (action : pressAction)=> void) => (e:any) =>{
+    const x = e.nativeEvent.pageX as number;
+    const y = e.nativeEvent.pageY as number;
+    if (!letter.isMoved){
+        //const newLetter = letter.merge({offsetX: x, offsetY: y, isMoved:false});
+        next(Action<Actions.Press, Key>(Actions.Press, letter));    
+    }
 };
 
 const getTransform = (letter:Key) =>{
@@ -144,9 +156,10 @@ const renderTiles = (keys: List<Key>, next: (action: action) => void) => {
                <View
                     onResponderMove={setPosition(key, next!)}
                     onResponderGrant={setStartPosition(key, next!)}
+                    onResponderRelease={setReleasePosition(key, next!)}
                     onStartShouldSetResponder={() => true}
                     onMoveShouldSetResponder={() => true}
-                    style={[styles.tile, getTransform(key)]}
+                    style={[styles.tile, getTransform(key), {zIndex:key.zIndex}]}
                     key={key.id}>
                     <Text style={[styles.letter]}>{text}</Text>
                 </View>
