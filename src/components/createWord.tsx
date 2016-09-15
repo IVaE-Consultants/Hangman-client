@@ -10,10 +10,7 @@ const uuid = require('uuid');
 
 
 enum Actions {
-    stateChanged,
-    delegate,
-    selectLetter,
-    keyboardAction,
+    keyAction,
     Done,
 }
 
@@ -44,11 +41,10 @@ const State = Record<StateAttrs>({
 });
 
 export type state = Record.IRecord<StateAttrs>;
-export type action = Action<Actions, any>;
+type keyAction = Action<Actions.keyAction, Keyboard.action>
+type doneAction = Action<Actions.Done, undefined>
+export type action = keyAction | doneAction;
 export type result = Result<state, action>;
-
-const delegateTo = (id : string) => (action : any) : action =>
-    Action(Actions.delegate, {id, action});
 
 
 // ASSUMPTION : Both arrays are same length
@@ -68,30 +64,7 @@ type config<S,A> = {
     mapper? : mapper;
 }
 type options = any;
-const subComponentsInit = <S, A>(componentList : config<S,A>[]) => {
-    const ids : string[] = componentList.map(() => uuid.v4());
-    const cs = componentList.map(({component}) => component);
-    const components =  Map<string, Component<S,A,any>>(zip(ids, cs));
-    const results = zip(ids, componentList).map(
-        ([id, {component, options, reply}]) => [id, component.init(options, reply)] as [string, Result<S,A>]
-    );
-    const states = Map<string, any>(results.map(
-        ([id, {state, effect}]) => [id, state] as [string, any])
-    );
-    const mappers = Map<string, mapper>(zip(ids, componentList)
-        .map(([id, {mapper = delegateTo}]) => [id, mapper] as [string, mapper])
-    );
-    const effects = results.map(([id, {state, effect}]) => {
-        const mapper = mappers.get(id);
-        return effect.map(mapper(id));
-    });
-    return {
-        states,
-        components,
-        effects,
-        mappers,
-    };
-}
+
 
 
 export const init = (game : Game.state, reply? : Reply<any>) : result => {
@@ -110,31 +83,44 @@ export const init = (game : Game.state, reply? : Reply<any>) : result => {
 };
 
 export const update = (state : state, action : action) : result => {
-    const {type, data} = action;
-    if (type === Actions.stateChanged){
-        // do something and return your new state and effects
-        return Result(state, Effect.none);
-    } else if (type === Actions.selectLetter){
-        const {myWord: oldWord, keyboardKeys: oldKeys} = state;
-        const {data: key} = data as Keyboard.pressAction;
-        const myWord = oldWord + key.text;
-        const keyboardKeys = Keyboard.disableKey(key, oldKeys!);
-        const nextState = state.merge({myWord, keyboardKeys});
-        return Result(nextState);
-    } else if (type === Actions.Done){
-        const {game, myWord, reply} = state;
-        if (myWord) {
-            const {state: gameState2, effect: gameEffect2} = Game.update(game!, Action<Game.Actions.GotWord, string>(Game.Actions.GotWord, myWord));
-            const {state: gameState, effect: gameEffect} = Game.update(gameState2, Action<Game.Actions.NextGameStep>(Game.Actions.NextGameStep));
+    switch (action.type) {
+        case Actions.keyAction:
+            const innerAction = action.data
+            switch (innerAction.type) {
+                case Keyboard.Actions.Press:
+                {
+                    const {myWord: oldWord, keyboardKeys: oldKeys} = state;
+                    const {data: key} = innerAction;
+                    const myWord = oldWord + key.text;
+                    const keyboardKeys = Keyboard.disableKey(key, oldKeys!);
+                    const nextState = state.merge({ myWord, keyboardKeys });
+                    return Result(nextState);
+                }
+                case Keyboard.Actions.Disable:
+                    throw new Error("Not implemented Actions.Disable")
+                case Keyboard.Actions.Move:
+                    const {data: letter} = innerAction;
+                    const {keyboardKeys} = state;
+                    const letterIndex = keyboardKeys!.findKey((item: Keyboard.Key) => item.id === letter.id);
+                    const newLetters = keyboardKeys!.remove(letterIndex).push(letter);
+                    const nextState = state.merge({ keyboardKeys: newLetters });
+                    return Result(nextState);
+            }
+        case Actions.Done:
+            const {game, myWord, reply} = state;
+            if (myWord) {
+                const {state: gameState2, effect: gameEffect2} = Game.update(game!, Action<Game.Actions.GotWord, string>(Game.Actions.GotWord, myWord));
+                const {state: gameState, effect: gameEffect} = Game.update(gameState2, Action<Game.Actions.NextGameStep>(Game.Actions.NextGameStep));
 
-            const nextState = state.merge({ game: gameState });
-            const replyEffect = reply!(Action(Replies.GameChanged, gameState));
-            return Result(nextState, replyEffect);
-        } else {
-            return Result(state);
-        }
+                const nextState = state.merge({ game: gameState });
+                const replyEffect = reply!(Action(Replies.GameChanged, gameState));
+                return Result(nextState, replyEffect);
+            } else {
+                return Result(state);
+            }
+
     }
-    throw new Error(`Invalid action type in component: ${type}`);
+    throw new Error(`Invalid action type in component: createWord`);
 };
 
 import {
@@ -172,11 +158,11 @@ const styles = StyleSheet.create({
 
 export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
     const {keyboardKeys} = state;
-    const keyboard = Keyboard.view(keyboardKeys!, (act : Keyboard.action) : void => next!(Action(Actions.selectLetter, act)));
+    const keyboard = Keyboard.view(keyboardKeys!, (act : Keyboard.action) : void => next!(Action<Actions.keyAction, Keyboard.action>(Actions.keyAction, act)));
     const {myWord} = state;
     return (
         <View style={styles.container as any}>
-            <TouchableHighlight style={styles.backButton} onPress={() => {next!(Action(Actions.Done)); navigate!(Page.pop()) }} >
+            <TouchableHighlight style={styles.backButton} onPress={() => {next!(Action<Actions.Done>(Actions.Done)); navigate!(Page.pop()) }} >
                 <View>
                     <Text> Done! </Text>
                 </View>

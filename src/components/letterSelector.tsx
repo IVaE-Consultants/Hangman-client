@@ -180,9 +180,7 @@ const setStartPosition = (letter:Letter, next: (action : action)=> void) => (e:a
     next(Action(Actions.move, {newLetter}));    
 };
 
-const returnTrue=() => { return true;};
-
-const getTransform = (letter:Letter, state : state) =>{
+const getTransform = (letter:Letter) =>{
     const transform = [{translateX: letter.x}, {translateY:letter.y}]
     return {transform:transform};
 }
@@ -228,9 +226,9 @@ export const view = (state : state, next? : (action : action) => void, navigate?
                 return (<View
                     onResponderMove={setPosition(letter, next!)}
                     onResponderGrant={setStartPosition(letter, next!)}
-                    onStartShouldSetResponder={returnTrue}
-                    onMoveShouldSetResponder={returnTrue}
-                    style={[styles.tile, getTransform(letter, state)]}
+                    onStartShouldSetResponder={() => true}
+                    onMoveShouldSetResponder={() => true}
+                    style={[styles.tile, getTransform(letter)]}
                     key={letter.id}>
                     <Text style={[styles.letter]}>{letter.character}</Text>
                 </View>)

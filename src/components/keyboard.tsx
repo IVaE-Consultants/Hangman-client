@@ -13,6 +13,7 @@ import {
 export const enum Actions {
     Press,
     Disable,
+    Move,
 }
 
 const defaultActiveColor = '#BEE1D2';
@@ -36,10 +37,14 @@ export const disableKey = (toDisable : Key, keys : List<Key>) : List<Key> => {
 
 export type Key = Record.IRecord<KeyAttrs>;
 export const Key = (attributes : KeyAttrs) => {
-    const defaults = {
+const defaults = {
         text: '…',
         enabled: true,
         id: 0,
+        x:0,
+        y:0,
+        offsetX:0,
+        offsetY:0,
     };
     return Record<KeyAttrs>(defaults)(attributes);
 };
@@ -48,16 +53,20 @@ interface KeyAttrs {
     id? : number;
     text? : string;
     enabled? : boolean;
+    x?:number;
+    y?:number;
+    offsetX?:number;
+    offsetY?:number;
 }
 
 export const createKeys = (f : (text : string, index? : number) => Key) =>
     (alphabet : string[]) : List<Key> =>
         List(alphabet.map(f));
 
-export type disableAction = Action<Actions, string>;
-export type pressAction = Action<Actions, Key>;
-export type setBackgroundColorAction = Action<Actions, { key : string, color : string } >;
-export type action = pressAction | disableAction | setBackgroundColorAction;
+export type disableAction = Action<Actions.Disable, string>;
+export type pressAction = Action<Actions.Press, Key>;
+export type moveAction = Action<Actions.Move, Key>;
+export type action = pressAction | disableAction |  moveAction;
 
 const {width, height} = Dimensions.get('window');
 const KEYBOARDROWS = 5; // Number of rows to divide letters in
@@ -96,17 +105,35 @@ const styles = StyleSheet.create({
 });
 
 const keyPress = (key : Key) => {
-    return Action(Actions.Press, key);
+    return Action<Actions.Press, Key>(Actions.Press, key);
 }
 
 export const isKeyPress = (action : action) => {
     return action.type === Actions.Press;
 }
 
-const press = (next : (action : action) => void) => (key : Key) => () => {
+const press = (next : (action : pressAction) => void) => (key : Key) => () => {
     if(key.enabled) {
         next(keyPress(key));
     }
+}
+const setPosition = (letter:Key, next: (action : moveAction)=> void) => (e:any) => {
+    const pressX = e.nativeEvent.pageX as number;
+    const pressY = e.nativeEvent.pageY as number;
+    const {offsetX, offsetY, x, y} = letter;
+    const newLetter = letter.merge({x:x+pressX-offsetX, y:y+pressY-offsetY, offsetX:pressX, offsetY:pressY});
+    next(Action<Actions.Move, Key>(Actions.Move, newLetter));      
+};
+const setStartPosition = (letter:Key, next: (action : moveAction)=> void) => (e:any) =>{
+    const x = e.nativeEvent.pageX as number;
+    const y = e.nativeEvent.pageY as number;
+    const newLetter = letter.merge({offsetX: x, offsetY: y});
+    next(Action<Actions.Move, Key>(Actions.Move, newLetter));    
+};
+
+const getTransform = (letter:Key) =>{
+    const transform = [{translateX: letter.x}, {translateY:letter.y}]
+    return {transform:transform};
 }
 
 const renderTiles = (keys: List<Key>, next: (action: action) => void) => {
@@ -114,12 +141,16 @@ const renderTiles = (keys: List<Key>, next: (action: action) => void) => {
         const {text, enabled} = key;
         const color = enabled ? defaultActiveColor : defaultInactiveColor;
         return (
-            <TouchableHighlight key={index} onPress={press(next)(key)}>
-            <View style={[styles.tile as any, {backgroundColor: color}]}>
-                <Text style={styles.letter as any}>{text}</Text>
-            </View>
-            </TouchableHighlight>
-        )
+               <View
+                    onResponderMove={setPosition(key, next!)}
+                    onResponderGrant={setStartPosition(key, next!)}
+                    onStartShouldSetResponder={() => true}
+                    onMoveShouldSetResponder={() => true}
+                    style={[styles.tile, getTransform(key)]}
+                    key={key.id}>
+                    <Text style={[styles.letter]}>{text}</Text>
+                </View>
+                )
     });
 }
 
