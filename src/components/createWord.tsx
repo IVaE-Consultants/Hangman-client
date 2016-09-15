@@ -6,14 +6,11 @@ import * as Keyboard from './keyboard';
 import * as Game from './game';
 import * as Word from './word';
 
-const uuid = require('uuid');
-
 
 enum Actions {
     keyAction,
     Done,
 }
-
 
 export type replies = gameChangedAction;
 type gameChangedAction = Action<Replies.GameChanged, Game.state>;
@@ -21,11 +18,9 @@ export const enum Replies {
     GameChanged,
     Never,//Tagged unions require enums with multiple options
 }
+
 interface StateAttrs {
     reply? : Reply<any>;
-    components?: Map<string, Component<any,any,any>>;
-    states?: Map<string, any>;
-    mappers?: Map<string, mapper>;
     game?: Game.state;
     myWord?: string;
     keyboardKeys?: List<Keyboard.Key>;
@@ -34,9 +29,6 @@ const State = Record<StateAttrs>({
     keyboardKeys: undefined,
     myWord: undefined,
     game: undefined,
-    components: undefined,
-    states: undefined,
-    mappers: undefined,
     reply: undefined,
 });
 
@@ -45,27 +37,6 @@ type keyAction = Action<Actions.keyAction, Keyboard.action>
 type doneAction = Action<Actions.Done, undefined>
 export type action = keyAction | doneAction;
 export type result = Result<state, action>;
-
-
-// ASSUMPTION : Both arrays are same length
-const zip = <X,Y>(xs : X[], ys : Y[]) : [X, Y][] => {
-    const result = xs.map((x : X, i : number) => {
-        const y : Y = ys[i];
-        const pair : [X, Y] = [x, y];
-        return pair;
-    });
-    return result;
-}
-type mapper = (id : string) => (action : any) => action;
-type config<S,A> = {
-    component : Component<S, A, any>;
-    options? : options;
-    reply? : Reply<action>;
-    mapper? : mapper;
-}
-type options = any;
-
-
 
 export const init = (game : Game.state, reply? : Reply<any>) : result => {
     const alphabet = [...'FGHASDTUUZX'];

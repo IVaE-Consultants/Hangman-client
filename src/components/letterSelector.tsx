@@ -6,36 +6,20 @@ import * as Game from './game';
 import * as Keyboard from './keyboard';
 import * as utils from '../utils';
 
-const uuid = require('uuid');
-
 
 enum Actions {
     done,
     keyAction,
 }
-interface LetterAttrs{
-    x?:number;
-    y?:number;
-    offsetX?:number;
-    offsetY?:number;
-    character?:string;
-    id?:string;
-};
 
 interface StateAttrs {
     reply? : Reply<any>;
-    components?: Map<string, Component<any,any,any>>;
-    states?: Map<string, any>;
     game?: Game.state;
-    mappers?: Map<string, mapper>;
     keyboardKeys?:List<Keyboard.Key>;
 }
 const State = Record<StateAttrs>({
     reply: undefined,
-    components: undefined,
-    states: undefined,
     game: undefined,
-    mappers: undefined,
     keyboardKeys: undefined,
 });
 
@@ -54,25 +38,6 @@ type doneAction = Action<Actions.done, undefined>
 export type action = keyAction | doneAction;
 export type result = Result<state, action>;
 
-
-// ASSUMPTION : Both arrays are same length
-const zip = <X,Y>(xs : X[], ys : Y[]) : [X, Y][] => {
-    const result = xs.map((x : X, i : number) => {
-        const y : Y = ys[i];
-        const pair : [X, Y] = [x, y];
-        return pair;
-    });
-    return result;
-}
-type mapper = (id : string) => (action : any) => action;
-type config<S,A> = {
-    component : Component<S, A, any>;
-    options? : options;
-    reply? : Reply<action>;
-    mapper? : mapper;
-}
-type options = any;
-
 const vowels = 'AOUEIY';
 const consonants = 'BCDFGHJKLMNPQRSTVWX';
 
@@ -87,10 +52,10 @@ const getRandomAlphabet = (n : number) => {
 export const init = (game : Game.state, reply? : Reply<any>) : result => {
 
     const alphabet = getRandomAlphabet(20); 
-
     const keyboardKeys = Keyboard.createKeys((text : string, id : number) => {
         return Keyboard.Key({text, id});
     })(alphabet);   
+
     const state = State({
         reply,
         game,
