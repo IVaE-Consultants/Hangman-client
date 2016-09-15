@@ -2,6 +2,8 @@ import * as React from 'react';
 import {Action, Effect, Result, Component} from 'effectjs';
 import {Record, List} from 'immutable';
 
+const uuid = require('uuid');
+
 import {
     StyleSheet,
     View,
@@ -40,7 +42,7 @@ export const Key = (attributes : KeyAttrs) => {
 const defaults = {
         text: '…',
         enabled: true,
-        id: 0,
+        id: uuid.v4(),
         x:0,
         y:0,
         offsetX:0,

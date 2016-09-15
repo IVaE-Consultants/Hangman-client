@@ -178,7 +178,6 @@ export const view = (state : state, next? : (action : action) => void, navigate?
     let {revealed, unknown, firstKnown, lastKnown} = state;
     const word = game.roundStates!.get(round).theirWord!.word;
     let visible : any;
-    console.log('THE ACTUAL KEYBOARD', testboard);
     // have to check undefined cause firstknown can be 0
     if(firstKnown!=undefined){
         visible = revealed!.slice(firstKnown, lastKnown+1);
