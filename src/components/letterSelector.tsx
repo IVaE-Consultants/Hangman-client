@@ -3,15 +3,15 @@ import {Record, Map, List, is as immutableEqual} from 'immutable';
 import {Action, Effect, Result, Component, Reply} from 'effectjs';
 import * as Page from './Page';
 import * as Game from './game';
+import * as Keyboard from './keyboard';
+import * as utils from '../utils';
 
 const uuid = require('uuid');
 
 
 enum Actions {
-    stateChanged,
-    delegate,
     done,
-    move,
+    keyAction,
 }
 interface LetterAttrs{
     x?:number;
@@ -22,22 +22,13 @@ interface LetterAttrs{
     id?:string;
 };
 
-type Letter = Record.IRecord<LetterAttrs>
-const Letter = Record<LetterAttrs>({
-    x:0,
-    y:0,
-    offsetX:0,
-    offsetY:0,
-    character:"f",
-    id:undefined,
-});
 interface StateAttrs {
     reply? : Reply<any>;
     components?: Map<string, Component<any,any,any>>;
     states?: Map<string, any>;
     game?: Game.state;
     mappers?: Map<string, mapper>;
-    letters?:List<Letter>;
+    keyboardKeys?:List<Keyboard.Key>;
 }
 const State = Record<StateAttrs>({
     reply: undefined,
@@ -45,7 +36,7 @@ const State = Record<StateAttrs>({
     states: undefined,
     game: undefined,
     mappers: undefined,
-    letters: undefined,
+    keyboardKeys: undefined,
 });
 
 export const enum Replies {
@@ -57,11 +48,12 @@ export type replies = gameChangedAction;
 type gameChangedAction = Action<Replies.GameChanged, Game.state>;
 
 export type state = Record.IRecord<StateAttrs>;
-export type action = Action<Actions, any>;
+
+type keyAction = Action<Actions.keyAction, Keyboard.action>
+type doneAction = Action<Actions.done, undefined>
+export type action = keyAction | doneAction;
 export type result = Result<state, action>;
 
-const delegateTo = (id : string) => (action : any) : action => 
-    Action(Actions.delegate, {id, action});
 
 // ASSUMPTION : Both arrays are same length
 const zip = <X,Y>(xs : X[], ys : Y[]) : [X, Y][] => {
@@ -80,81 +72,69 @@ type config<S,A> = {
     mapper? : mapper;
 }
 type options = any;
-const subComponentsInit = <S, A>(componentList : config<S,A>[]) => {
-    const ids : string[] = componentList.map(() => uuid.v4());
-    const cs = componentList.map(({component}) => component);
-    const components =  Map<string, Component<S,A,any>>(zip(ids, cs));
-    const results = zip(ids, componentList).map(
-        ([id, {component, options, reply}]) => [id, component.init(options, reply)] as [string, Result<S,A>]
-    );
-    const states = Map<string, any>(results.map(
-        ([id, {state, effect}]) => [id, state] as [string, any])
-    );
-    const mappers = Map<string, mapper>(zip(ids, componentList)
-        .map(([id, {mapper = delegateTo}]) => [id, mapper] as [string, mapper])
-    );
-    const effects = results.map(([id, {state, effect}]) => {
-        const mapper = mappers.get(id);
-        return effect.map(mapper(id));
-    });
-    return {
-        states, 
-        components, 
-        effects,
-        mappers,
-    };
+
+const vowels = 'AOUEIY';
+const consonants = 'BCDFGHJKLMNPQRSTVWX';
+
+const getRandomAlphabet = (n : number) => {
+    const numOfVowels = Math.floor(0.4*n);
+    
+    var alphabet = utils.range(0,numOfVowels).map(x=>vowels[Math.floor(Math.random()*vowels.length)]);
+    alphabet = alphabet.concat(utils.range(0,n-numOfVowels).map(x=>consonants[Math.floor(Math.random()*consonants.length)]));
+    return alphabet;
 }
-
-
-type SubState = state  ;
 
 export const init = (game : Game.state, reply? : Reply<any>) : result => {
 
-    const letters = List<Letter>([
-        Letter({id : uuid.v4(),character:"p"}),
-        Letter({id : uuid.v4(),character:"a"}),
-        Letter({id : uuid.v4(),character:"u"}),
-        Letter({id : uuid.v4(),character:"l"}),
-        ]);
-    // Init subcomponents and map the effects
-    const componentList : config<SubState, any>[] = [
-   //     {component: Component1.component},
-     //   {component: Component2.component}
-    ];
-    const {components, states, effects, mappers} = subComponentsInit(componentList);
-    const effect = Effect.all(effects);
+    const alphabet = getRandomAlphabet(20); 
+
+    const keyboardKeys = Keyboard.createKeys((text : string, id : number) => {
+        return Keyboard.Key({text, id});
+    })(alphabet);   
     const state = State({
         reply,
-        components,
-        states,
-        mappers,
         game,
-        letters,
+        keyboardKeys,
     });
-    return Result(state, effect);
+    return Result(state, Effect.none);
 };
 
-export const update = (state : state, action : action) : result => {
-    const {type, data} = action;
-    if (type === Actions.stateChanged){
-        // do something and return your new state and effects
-        return Result(state, Effect.none);
-    } else if (type === Actions.done) {
-        const {state:gameState, effect:gameEffect}  = Game.update(state.game!, Action<Game.Actions.NextGameStep>(Game.Actions.NextGameStep));
-        const replyEffect = state.reply!(Action(Replies.GameChanged ,gameState));
-        //TODO: handle effects
-        const newState = state.merge({game:gameState});
-        return Result(newState, replyEffect);
-    } else if (type == Actions.move){
-        const {newLetter:letter} = data;
-        const {letters} = state;
-        const letterIndex = letters!.findKey((item:Letter)=> item.id === letter.id);
-        const newLetters = letters!.remove(letterIndex).push(letter);
-        const nextState = state.merge({letters: newLetters});
-        return Result(nextState);
+export const update = (state: state, action: action): result => {
+    switch (action.type) {
+        case Actions.keyAction:
+            const innerAction = action.data
+            switch (innerAction.type) {
+                case Keyboard.Actions.Press:
+                    {
+                        return Result(state);
+                    }
+                case Keyboard.Actions.Disable:
+                    throw new Error("Not implemented Actions.Disable")
+                case Keyboard.Actions.Move:
+                    const {data: letter} = innerAction;
+                    const {keyboardKeys} = state;
+                    const newKeyboardKeys = keyboardKeys!.map(x => {
+                        if (x!.zIndex <= letter.zIndex) {
+                            return x!
+                        } else {
+                            return x!.set("zIndex", x!.zIndex - 1);
+                        }
+                    }).toList();
+                    const letterIndex = newKeyboardKeys.findKey((item: Keyboard.Key) => item.id === letter.id);
+                    const newLetters = newKeyboardKeys.set(letterIndex, letter.set("zIndex", newKeyboardKeys!.count()));
+                    const nextState = state.merge({ keyboardKeys: newLetters });
+
+                    return Result(nextState);
+            }
+        case Actions.done:
+            const {state: gameState, effect: gameEffect} = Game.update(state.game!, Action<Game.Actions.NextGameStep>(Game.Actions.NextGameStep));
+            const replyEffect = state.reply!(Action(Replies.GameChanged, gameState));
+            //TODO: handle effects
+            const newState = state.merge({ game: gameState });
+            return Result(newState, replyEffect);
+
     }
-    // TODO: change component to component name
-    throw new Error(`Invalid action type in component: ${type}`);
+    throw new Error(`Invalid action type in component: letterSelector `);
 };
 
 
@@ -165,25 +145,6 @@ import {
     TouchableHighlight,
 } from 'react-native';
 
-
-const setPosition = (letter:Letter, next: (action : action)=> void) => (e:any) => {
-    const pressX = e.nativeEvent.pageX as number;
-    const pressY = e.nativeEvent.pageY as number;
-    const {offsetX, offsetY, x, y} = letter;
-    const newLetter = letter.merge({x:x+pressX-offsetX, y:y+pressY-offsetY, offsetX:pressX, offsetY:pressY});
-    next(Action(Actions.move, {newLetter}));      
-};
-const setStartPosition = (letter:Letter, next: (action : action)=> void) => (e:any) =>{
-    const x = e.nativeEvent.pageX as number;
-    const y = e.nativeEvent.pageY as number;
-    const newLetter = letter.merge({offsetX: x, offsetY: y});
-    next(Action(Actions.move, {newLetter}));    
-};
-
-const getTransform = (letter:Letter) =>{
-    const transform = [{translateX: letter.x}, {translateY:letter.y}]
-    return {transform:transform};
-}
 
 const styles = StyleSheet.create({
     container: {
@@ -222,27 +183,18 @@ const styles = StyleSheet.create({
 
 
 export const view = (state : state, next? : (action : action) => void, navigate? : (action : Page.action) => void) => {
-    const letterViews = state.letters!.map((letter : Letter)  => {
-                return (<View
-                    onResponderMove={setPosition(letter, next!)}
-                    onResponderGrant={setStartPosition(letter, next!)}
-                    onStartShouldSetResponder={() => true}
-                    onMoveShouldSetResponder={() => true}
-                    style={[styles.tile, getTransform(letter)]}
-                    key={letter.id}>
-                    <Text style={[styles.letter]}>{letter.character}</Text>
-                </View>)
-            });
+    const {keyboardKeys} = state;
+    const keyboard = Keyboard.view(keyboardKeys!, (act : Keyboard.action) : void => next!(Action<Actions.keyAction, Keyboard.action>(Actions.keyAction, act)));
     return (
         <View>
             <View style={styles.container}>
-                <TouchableHighlight style={styles.backButton} onPress={() => { next!(Action(Actions.done)); navigate!(Page.pop()) }} > 
+                <TouchableHighlight style={styles.backButton} onPress={() => { next!(Action<Actions.done>(Actions.done)); navigate!(Page.pop()) }} > 
                     <View>
                         <Text> Done! </Text>
                     </View>
                 </TouchableHighlight>
             </View>
-            {letterViews}
+            {keyboard}
         </View>
    )
 };

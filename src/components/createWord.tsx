@@ -7,7 +7,6 @@ import * as Game from './game';
 import * as Word from './word';
 
 const uuid = require('uuid');
-const UIManager = require('NativeModules')
 
 
 enum Actions {
